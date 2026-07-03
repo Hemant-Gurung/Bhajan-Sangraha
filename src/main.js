@@ -66,7 +66,7 @@ autoUpdater.on('update-downloaded', (info) => {
     buttons: ['Restart now', 'Later'],
     defaultId: 0,
     title: 'Update ready',
-    message: `Sanctuary ${info.version} is ready.`,
+    message: `Bachan & Bhajan ${info.version} is ready.`,
     detail: 'Restart to apply the update.',
   }).then(({ response }) => { if (response === 0) autoUpdater.quitAndInstall(); });
 });
