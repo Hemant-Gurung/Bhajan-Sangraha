@@ -34,7 +34,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); }
 /* top bar shared across operator views */
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; background: var(--card); border-radius: 18px 18px 0 0; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand .mark { width: 38px; height: 38px; border-radius: 50%; background: var(--olive); color: #fff; display: grid; place-items: center; font-family: var(--serif); }
+.brand .mark { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; display: block; }
 .brand .name { font-family: var(--serif); font-size: 22px; }
 
 .seg { display: inline-flex; background: var(--panel); border-radius: 999px; padding: 4px; gap: 4px; }
