@@ -50,7 +50,7 @@
     }
     function render(s) {
       if (s.blank) { stage.style.background = '#000'; document.getElementById('o-ne').textContent = ''; document.getElementById('o-en').textContent = ''; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
-      if (s.logo) { stage.style.background = '#080c1a';   // matches the logo's own background document.getElementById('o-ne').innerHTML = '<img class="logo-mark" src="logo.png" alt="" />'; const e = document.getElementById('o-en'); e.textContent = 'Bachan & Bhajan'; e.style.color = '#E8A33D'; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
+      if (s.logo) { stage.style.background = '#080c1a'; document.getElementById('o-ne').innerHTML = '<img class="logo-mark" src="logo.png" alt="" />'; const e = document.getElementById('o-en'); e.textContent = 'Bachan & Bhajan'; e.style.color = '#E8A33D'; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
 
       stage.style.background = s.bg === 'gradient' ? 'linear-gradient(135deg,#1B1A33,#0B0B12)' : (s.bg || '#fff');
       const ne = document.getElementById('o-ne'), en = document.getElementById('o-en');
