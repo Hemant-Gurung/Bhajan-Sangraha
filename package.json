@@ -40,8 +40,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "hemantGrg",
-      "repo": "Bhajan-Sangria-software-Bible-"
+      "owner": "Hemant-Gurung",
+      "repo": "Bhajan-Sangraha"
     }
   },
   "dependencies": {
