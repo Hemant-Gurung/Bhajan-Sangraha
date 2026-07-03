@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Sanctuary — Operator</title>
+  <style>
+    /* home screen */
+    .home { max-width: 1340px; margin: 0 auto; background: var(--panel); border-radius: 18px; padding: 0 0 40px; }
+    .home-hero { text-align: center; margin: 40px 0; }
+    .home-hero h1 { font-family: var(--serif); font-size: 52px; }
+    .home-hero .sub { font-family: var(--deva); color: var(--muted); margin-top: 6px; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; padding: 0 40px; }
+    .source-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 32px; min-height: 240px; display: flex; flex-direction: column; cursor: pointer; }
+    .source-card .ico { width: 54px; height: 54px; border-radius: 14px; background: #EAE7DD; display: grid; place-items: center; font-size: 22px; }
+    .source-card h2 { font-family: var(--serif); font-size: 30px; margin-top: 60px; }
+    .source-card h2 span { font-family: var(--deva); color: var(--muted); font-size: 20px; margin-left: 8px; }
+    .source-card p { color: #6b675e; margin-top: 10px; max-width: 360px; }
+    .source-card .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 22px; }
+    .source-card .go { width: 42px; height: 42px; border-radius: 50%; background: var(--olive); color: #fff; display: grid; place-items: center; }
+    .source-card.bible .go { background: var(--terra); }
+    .recent { padding: 24px 40px 0; display: flex; align-items: center; gap: 10px; }
+    .chip { background: #EFEDE4; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- HOME -->
+<section id="view-home" class="page">
+  <div class="page-label label">Home — Choose source</div>
+  <div class="home">
+    <div class="topbar" style="border-radius:18px 18px 0 0;">
+      <div class="brand"><div class="mark">✝</div><div class="name">Sanctuary</div></div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span class="label">Sunday Worship · 10:00 AM</span>
+        <span class="lang" id="lang-home"><button class="active" data-lang="en">EN</button><button data-lang="ne" class="deva">ने</button></span>
+      </div>
+    </div>
+    <div class="home-hero">
+      <div class="label">Begin the service</div>
+      <h1 class="serif">What shall we share?</h1>
+      <div class="sub">आज के देखाउने?</div>
+    </div>
+    <div class="cards">
+      <div class="source-card" data-go="songs">
+        <div class="ico">🎵</div>
+        <h2 class="serif">Songs <span>गीतहरू</span></h2>
+        <p>Find any hymn by its number or by name, then send the words to the screen.</p>
+        <div class="foot"><span class="label" id="song-count">songs in book</span><span class="go">→</span></div>
+      </div>
+      <div class="source-card bible" data-go="bible">
+        <div class="ico">📖</div>
+        <h2 class="serif">Bible <span>बाइबल</span></h2>
+        <p>Pick a book, chapter and verse in KJV or Nepali and project it instantly.</p>
+        <div class="foot"><span class="label">KJV · नेपाली (NNRV)</span><span class="go">→</span></div>
+      </div>
+    </div>
+    <div class="recent">
+      <span class="label">Recent</span>
+      <span class="chip">#027 · Pavitra Aatma</span>
+      <span class="chip">John 3:16</span>
+      <span class="chip">#014 · Mero Jeevan</span>
+    </div>
+  </div>
+</section>
+
+<!-- OPERATOR (songs + bible share this shell) -->
+<section id="view-op" class="page hidden">
+  <div class="page-label label" id="op-label">Songs — Operator panel</div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand"><div class="mark">✝</div><div class="name">Sanctuary</div></div>
+      <div class="seg" id="seg"><button data-tab="songs" class="active">🎵 Songs</button><button data-tab="bible">📖 Bible</button></div>
+      <div style="display:flex;align-items:center;">
+        <span class="live">LIVE</span>
+        <span class="lang" id="lang-op"><button class="active" data-lang="en">EN</button><button data-lang="ne" class="deva">ने</button></span>
+      </div>
+    </div>
+    <div class="body">
+      <!-- LEFT: songs -->
+      <div class="col-left" id="left-songs">
+        <div class="seg book-seg" id="book-seg">
+          <button data-book="all" class="active">All</button>
+          <button data-book="bhajan">Bhajan</button>
+          <button data-book="chorus">Chorus</button>
+          <button data-book="children">Bal Geet</button>
+          <button data-book="other">Other</button>
+        </div>
+        <div class="search-row">
+          <div>
+            <div class="label" style="margin-bottom:6px;">Number</div>
+            <input class="num-box" id="num" inputmode="numeric" placeholder="000" />
+          </div>
+          <div>
+            <div class="label" style="margin-bottom:6px;">Search by name</div>
+            <div class="search">🔍 <input id="q" placeholder="Pavitra..." /></div>
+          </div>
+        </div>
+        <div class="label" style="margin-bottom:10px;">Results</div>
+        <ul class="results" id="results"></ul>
+      </div>
+
+      <!-- LEFT: bible -->
+      <div class="col-left hidden" id="left-bible">
+        <div class="field">
+          <span class="label">Translation</span>
+          <div class="seg" id="trans"><button data-t="KJV" class="active">KJV</button><button data-t="NE" class="deva">नेपाली</button><button data-t="BOTH">Both · दुवै</button></div>
+        </div>
+        <div class="field bk-row">
+          <div><span class="label">Book</span><select id="book"></select></div>
+          <div><span class="label">Chapter</span><input class="chapnum" id="chap" value="3" inputmode="numeric" /></div>
+        </div>
+        <div class="field">
+          <span class="label">Verse</span>
+          <div class="verses-grid" id="verses"></div>
+        </div>
+        <div class="selnote" id="selnote">Reference selected: —</div>
+      </div>
+
+      <!-- RIGHT: shared preview + controls -->
+      <div class="col-right">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="label">Live preview</span>
+          <span class="label" id="pos"></span>
+        </div>
+        <div class="preview" id="preview" style="margin-top:10px;">
+          <div class="p-ne" id="pv-ne"></div>
+          <div class="p-en" id="pv-en"></div>
+          <div class="p-foot" id="pv-foot"></div>
+        </div>
+
+        <div class="controls">
+          <div class="ctl-row">
+            <span class="label">Background</span>
+            <div class="swatches" id="bg-swatches"></div>
+            <input type="color" id="bg-picker" class="picker" title="Any background color" />
+          </div>
+          <div class="ctl-row">
+            <span class="label">Text</span>
+            <div class="swatches" id="text-swatches"></div>
+            <input type="color" id="text-picker" class="picker" title="Any text color" />
+          </div>
+          <div class="ctl-row">
+            <span class="label">Lyrics</span>
+            <select id="lyric-mode" style="padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);">
+              <option value="ne">Nepali</option>
+              <option value="roman">Roman</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="nav">
+          <button class="btn" id="prev">‹ Previous</button>
+          <button class="btn" id="next">Next ›</button>
+          <button class="btn btn-primary" id="send">🖥 Send to Projector</button>
+        </div>
+        <div class="secondary-row">
+          <button class="btn" id="blank">Blank screen</button>
+          <button class="btn" id="logo">Show logo</button>
+        </div>
+        <div class="secondary-row">
+          <button class="btn" id="freeze">❄ Freeze</button>
+          <button class="btn" id="close-present">Close presenting</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="operator.js"></script>
+</body>
+</html>

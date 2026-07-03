@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+# lyrics & Bible data stay local only — never upload to the repo
+src/data/
+*.log
+.DS_Store
+src/data/*.bak

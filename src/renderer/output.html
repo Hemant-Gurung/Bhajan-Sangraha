@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Sanctuary — Projector</title>
+  <style>
+    html, body { height: 100%; background: #fff; }
+    .stage { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6vh 8vw; position: relative; }
+    .content { width: 100%; }
+    .o-ne { font-family: var(--deva); font-weight: 700; font-size: 5.2vw; line-height: 1.4; white-space: pre-line; }
+    .o-en { font-family: var(--serif); font-size: 3.2vw; margin-top: 2vh; opacity: .85; white-space: pre-line; }
+    .o-foot { position: absolute; bottom: 5vh; width: 84vw; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 1.2vw; letter-spacing: .12em; text-transform: uppercase; opacity: .55; }
+    .logo-mark { width: 14vh; height: 14vh; border-radius: 50%; background: var(--olive); color: #fff; display: grid; place-items: center; font-family: var(--serif); font-size: 7vh; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="content" id="content">
+      <div class="o-ne" id="o-ne"></div>
+      <div class="o-en" id="o-en"></div>
+    </div>
+    <div class="o-foot"><span id="o-foot-l"></span><span id="o-foot-r"></span></div>
+  </div>
+  <script>
+    const stage = document.getElementById('stage');
+    const content = document.getElementById('content');
+    const BASE_NE = 5.2, BASE_EN = 3.2;   // vw, at scale 1
+    let last = null;
+
+    // shrink font until ne+en fit the height left after padding + footer
+    function autofit() {
+      const ne = document.getElementById('o-ne'), en = document.getElementById('o-en');
+      const foot = document.querySelector('.o-foot');
+      const vh = window.innerHeight / 100;
+      // footer sits at bottom 5vh; reserve it on BOTH sides since content is centered
+      const footZone = 5 * vh + foot.offsetHeight + 2 * vh;
+      const avail = stage.clientHeight - 2 * footZone;
+      let k = 1;
+      const apply = () => { ne.style.fontSize = (BASE_NE * k) + 'vw'; en.style.fontSize = (BASE_EN * k) + 'vw'; };
+      apply();
+      for (let i = 0; i < 10 && content.offsetHeight > avail && k > 0.2; i++) {
+        k *= Math.max(0.5, (avail / content.offsetHeight) * 0.98);
+        apply();
+      }
+    }
+    function setGrad(el, isText) {
+      el.style.background = 'linear-gradient(135deg,#ff8a00,#e52e71,#2af598)';
+      if (isText) { el.style.webkitBackgroundClip = 'text'; el.style.webkitTextFillColor = 'transparent'; }
+    }
+    function render(s) {
+      if (s.blank) { stage.style.background = '#000'; document.getElementById('o-ne').textContent = ''; document.getElementById('o-en').textContent = ''; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
+      if (s.logo) { stage.style.background = '#fff'; document.getElementById('o-ne').innerHTML = '<div class="logo-mark">✝</div>'; document.getElementById('o-en').textContent = 'Sanctuary'; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
+
+      stage.style.background = s.bg === 'gradient' ? 'linear-gradient(135deg,#1B1A33,#0B0B12)' : (s.bg || '#fff');
+      const ne = document.getElementById('o-ne'), en = document.getElementById('o-en');
+      ne.innerHTML = sanctuary.lyricHTML(s.ne); en.innerHTML = sanctuary.lyricHTML(s.en);
+      const color = s.text === 'gradient' ? null : (s.text || '#000');
+      [ne, en].forEach(el => { el.style.webkitTextFillColor = ''; el.style.background = ''; el.style.color = color || ''; if (!color) setGrad(el, true); });
+      document.getElementById('o-foot-l').textContent = s.foot || '';
+      document.getElementById('o-foot-l').style.color = color || '#fff';
+      document.getElementById('o-foot-r').textContent = s.pos || '';
+      document.getElementById('o-foot-r').style.color = color || '#fff';
+      autofit();
+    }
+    window.sanctuary.onSlide(s => { last = s; render(s); });
+    window.addEventListener('resize', () => { if (last && !last.blank && !last.logo) render(last); });
+    // projector has focus in presentation mode; forward arrow keys to the operator
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') window.sanctuary.nav(1);
+      if (e.key === 'ArrowLeft') window.sanctuary.nav(-1);
+    });
+  </script>
+</body>
+</html>
