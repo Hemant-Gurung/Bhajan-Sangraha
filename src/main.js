@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs = require('fs-extra');
 
 let operatorWin = null;
 let projectorWin = null;
@@ -57,6 +58,47 @@ ipcMain.handle('toggle-projector-fullscreen', () => {
   projectorWin.setFullScreen(f);
   return f;
 });
+
+// ---------- media backgrounds ----------
+function mediaDir() {
+  const dir = path.join(app.getPath('userData'), 'media');
+  fs.ensureDirSync(dir);
+  return dir;
+}
+
+ipcMain.handle('pick-media', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(operatorWin, {
+    title: 'Add background media',
+    filters: [
+      { name: 'Images & Videos', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm', 'mov'] },
+    ],
+    properties: ['openFile', 'multiSelections'],
+  });
+  if (canceled || !filePaths.length) return [];
+  const dir = mediaDir();
+  const added = [];
+  for (const src of filePaths) {
+    const name = Date.now() + '-' + path.basename(src);
+    const dest = path.join(dir, name);
+    await fs.copy(src, dest);
+    added.push(name);
+  }
+  return added;
+});
+
+ipcMain.handle('list-media', async () => {
+  const dir = mediaDir();
+  const files = await fs.readdir(dir);
+  const exts = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i;
+  return files.filter(f => exts.test(f)).sort();
+});
+
+ipcMain.handle('remove-media', async (_e, filename) => {
+  const p = path.join(mediaDir(), path.basename(filename));
+  await fs.remove(p);
+});
+
+ipcMain.handle('media-path', () => mediaDir());
 
 // Auto-update: check GitHub Releases on launch, prompt to restart once downloaded.
 // ponytail: no update UI beyond one dialog — a church operator just wants "restart to apply".

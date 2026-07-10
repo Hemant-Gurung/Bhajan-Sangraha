@@ -20,18 +20,6 @@ function isScale(line) {
 const stripScale = line => line.replace(/\s*\([^)]*\)\s*$/, '').trim();
 const isNoise = line => /^\s*Music\b/i.test(line);
 
-// group lyric lines into verses: accumulate while parens are unbalanced (keeps "(...\n...) २" together)
-function toVerses(lines) {
-  const verses = []; let buf = [], bal = 0;
-  for (const l of lines) {
-    buf.push(l);
-    bal += (l.split('(').length - 1) - (l.split(')').length - 1);
-    if (bal <= 0) { verses.push(buf.join('\n')); buf = []; bal = 0; }
-  }
-  if (buf.length) verses.push(buf.join('\n'));
-  return verses;
-}
-
 const files = fs.readdirSync(otherDir).filter(f => f.endsWith('.txt')).sort();
 const songs = [];
 for (const file of files) {
@@ -42,16 +30,26 @@ for (const file of files) {
   if (m) { artist = m[1].trim(); body = raw.slice(m[0].length); }
   const chunks = body.split(/\n[ \t]*\n[ \t]*\n+/).map(c => c.trim()).filter(Boolean);
   for (const chunk of chunks) {
-    const lines = chunk.split('\n').map(l => l.trim()).filter(Boolean);
-    let h = -1;
-    for (let k = 0; k < Math.min(2, lines.length); k++) if (isScale(lines[k])) { h = k; break; }
-    const title_ne = stripScale(lines[0]);
-    const lyric = lines.slice(h >= 0 ? h + 1 : 1).filter(l => !isNoise(l));
-    const verses = toVerses(lyric).map(ne => ({ ne, en: romanizeText(ne) }));
+    // pull out pure hashtag lines (e.g. "#christmas") as tags; strict so lyric "# 1." isn't eaten
+    const isTagLine = l => /^#[^\s#]+(\s+#[^\s#]+)*$/.test(l.trim());
+    const tags = chunk.split('\n').filter(isTagLine)
+      .flatMap(l => l.trim().split(/\s+/)).map(t => t.replace(/^#/, '').toLowerCase()).filter(Boolean);
+    // a verse = a stanza (consecutive lines between blank lines). This preserves multi-line verses.
+    const stanzas = chunk.split('\n').filter(l => !isTagLine(l)).join('\n')
+      .split(/\n[ \t]*\n/)
+      .map(s => s.split('\n').map(x => x.trim()).filter(l => l && !isNoise(l)))
+      .filter(g => g.length);
+    if (!stanzas.length) continue;
+    const head = stanzas[0];                       // title (+ optional "( key )" header line)
+    const title_ne = stripScale(head[0]);
+    const leadExtra = head.slice(1).filter(l => !isScale(l));   // lyrics stuck in the title block
+    const verseGroups = (leadExtra.length ? [leadExtra] : []).concat(stanzas.slice(1));
+    const verses = verseGroups.map(g => g.join('\n')).filter(Boolean).map(ne => ({ ne, en: romanizeText(ne) }));
     songs.push({
       id: 0, number: 0, book: 'other',
       title: tc(romanizeText(title_ne)), title_ne,
       section: artist, section_ne: '',
+      tags,
       verses,
     });
   }

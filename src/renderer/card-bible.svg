@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0e4cc"/>
+      <stop offset="60%" stop-color="#e8d8b8"/>
+      <stop offset="100%" stop-color="#d4c4a0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#f5e6c8" stop-opacity=".9"/>
+      <stop offset="60%" stop-color="#e8d4a8" stop-opacity=".3"/>
+      <stop offset="100%" stop-color="#d4c4a0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cross" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c4a060"/>
+      <stop offset="100%" stop-color="#8a6d44"/>
+    </linearGradient>
+    <linearGradient id="mtn1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b8a888"/>
+      <stop offset="100%" stop-color="#a09478"/>
+    </linearGradient>
+    <linearGradient id="mtn2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c4b898"/>
+      <stop offset="100%" stop-color="#b0a488"/>
+    </linearGradient>
+    <linearGradient id="bpage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#f0ebe0"/>
+    </linearGradient>
+    <linearGradient id="bcover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a6d44"/>
+      <stop offset="100%" stop-color="#6e5530"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="14" fill="url(#sky)"/>
+  <!-- light glow behind cross -->
+  <circle cx="200" cy="150" r="120" fill="url(#glow)"/>
+  <!-- light rays -->
+  <g stroke="#e8d4a0" stroke-width="2" opacity=".3">
+    <line x1="200" y1="80" x2="200" y2="20"/>
+    <line x1="200" y1="80" x2="140" y2="30" />
+    <line x1="200" y1="80" x2="260" y2="30"/>
+    <line x1="200" y1="80" x2="110" y2="60"/>
+    <line x1="200" y1="80" x2="290" y2="60"/>
+    <line x1="200" y1="100" x2="80" y2="50"/>
+    <line x1="200" y1="100" x2="320" y2="50"/>
+  </g>
+  <!-- wider rays -->
+  <g stroke="#d4c090" stroke-width="1.5" opacity=".15">
+    <line x1="200" y1="100" x2="50" y2="30"/>
+    <line x1="200" y1="100" x2="350" y2="30"/>
+    <line x1="200" y1="100" x2="30" y2="80"/>
+    <line x1="200" y1="100" x2="370" y2="80"/>
+  </g>
+  <!-- mountains back -->
+  <path d="M0,300 L60,220 L130,270 L200,200 L280,260 L340,210 L400,280 L400,400 L0,400 Z" fill="url(#mtn1)" opacity=".5"/>
+  <!-- mountains front -->
+  <path d="M0,340 L80,270 L160,310 L230,250 L310,300 L370,260 L400,310 L400,400 L0,400 Z" fill="url(#mtn2)" opacity=".6"/>
+  <!-- cross -->
+  <g transform="translate(200,170)">
+    <rect x="-10" y="-100" width="20" height="140" rx="3" fill="url(#cross)"/>
+    <rect x="-45" y="-70" width="90" height="18" rx="3" fill="url(#cross)"/>
+    <!-- cross highlight -->
+    <rect x="-5" y="-95" width="5" height="130" rx="2" fill="#d4b878" opacity=".4"/>
+    <rect x="-40" y="-66" width="80" height="5" rx="2" fill="#d4b878" opacity=".3"/>
+  </g>
+  <!-- open bible at bottom -->
+  <g transform="translate(200,340)">
+    <!-- left cover -->
+    <path d="M-8,0 L-75,12 L-75,55 L-8,43 Z" fill="url(#bcover)" rx="2"/>
+    <!-- right cover -->
+    <path d="M8,0 L75,12 L75,55 L8,43 Z" fill="url(#bcover)" rx="2"/>
+    <!-- left pages -->
+    <path d="M-6,-2 L-70,10 L-70,50 L-6,38 Z" fill="url(#bpage)"/>
+    <!-- right pages -->
+    <path d="M6,-2 L70,10 L70,50 L6,38 Z" fill="url(#bpage)"/>
+    <!-- spine -->
+    <path d="M-8,0 L0,-6 L8,0 L8,43 L0,37 L-8,43 Z" fill="#d4cfb8" opacity=".5"/>
+    <!-- page lines -->
+    <g stroke="#c5c0a8" stroke-width=".8" opacity=".5">
+      <line x1="-60" y1="20" x2="-14" y2="12"/>
+      <line x1="-60" y1="28" x2="-14" y2="20"/>
+      <line x1="-60" y1="36" x2="-14" y2="28"/>
+      <line x1="60" y1="20" x2="14" y2="12"/>
+      <line x1="60" y1="28" x2="14" y2="20"/>
+      <line x1="60" y1="36" x2="14" y2="28"/>
+    </g>
+  </g>
+  <!-- small birds/doves -->
+  <g fill="none" stroke="#a09478" stroke-width="1.5" opacity=".3">
+    <path d="M120,60 Q125,52 130,58 Q135,52 140,60"/>
+    <path d="M280,80 Q284,74 288,78 Q292,74 296,80"/>
+    <path d="M310,50 Q313,44 316,49 Q319,44 322,50"/>
+  </g>
+</svg>

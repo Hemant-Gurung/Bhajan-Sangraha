@@ -10,9 +10,13 @@ const state = {
   tab: 'songs',
   lyric: 'ne',             // song lyrics on screen: ne | roman | both
   sbook: 'all',            // songs book filter: all | bhajan | chorus | children | other
+  tag: null,               // active tag filter (e.g. 'christmas'), or null
   openArtists: new Set(),  // expanded artist groups in the Other accordion
   bg: '#FFFFFF',
   text: '#000000',
+  mediaBg: null,            // filename of selected media background (null = none)
+  mediaDir: '',             // resolved path to media directory
+  mediaList: [],            // list of filenames in media library
   // songs
   song: null,
   vi: 0,
@@ -26,7 +30,23 @@ const state = {
 const bookEn = (code) => (bible.books.find(b => b.code === code) || {}).en || code;
 
 let isLive = false;            // true once something has been sent to the projector
-function pushIfLive() { if (isLive) project(currentSlide()); }
+let liveSlide = null;          // exact payload currently on the projector (the staged preview is separate)
+let liveLabel = '';            // short reference shown in the LIVE readout
+// Stage-then-send: selecting a song/verse or changing appearance only updates the PREVIEW.
+// Nothing reaches the projector until goLive() runs (Send button or Space).
+function pushIfLive() { /* intentionally no-op — staging never auto-projects */ }
+function goLive(payload, label) {
+  isLive = true; liveSlide = payload; liveLabel = label || '';
+  project(payload);
+  renderLiveBadge();
+}
+function sendLive() { const s = currentSlide(); goLive(s, s.foot || s.pos || 'Live'); }
+function renderLiveBadge() {
+  const el = $('live');
+  if (!el) return;
+  el.classList.toggle('idle', !isLive);
+  el.textContent = isLive ? liveLabel : 'Nothing live';
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,6 +59,8 @@ function setTab(tab) {
   state.tab = tab;
   $('left-songs').classList.toggle('hidden', tab !== 'songs');
   $('left-bible').classList.toggle('hidden', tab !== 'bible');
+  $('lyric-row').classList.toggle('hidden', tab === 'bible');   // Lyrics toggle is songs-only
+
   $('op-label').textContent = (tab === 'songs' ? 'Songs' : 'Bible') + ' — Operator panel';
   document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('seg').classList.toggle('bible', tab === 'bible');
@@ -82,6 +104,9 @@ function selectSong(book, id) {
   state.vi = 0;
   renderResults(lastList);
   renderPreview();
+  // scroll selected song into view
+  const active = $('results').querySelector('.result.active');
+  if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 let lastList = songs;
 function filterSongs() {
@@ -89,9 +114,20 @@ function filterSongs() {
   const q = $('q').value.trim().toLowerCase();
   let list = state.sbook === 'all' ? songs.slice() : songs.filter(s => s.book === state.sbook);
   if (num) list = list.filter(s => String(s.number) === num || String(s.number).startsWith(num));
-  if (q) list = list.filter(s => s.title.toLowerCase().includes(q) || (s.title_ne && s.title_ne.includes(q)) || s.section.toLowerCase().includes(q));
+  if (q) list = list.filter(s => s.title.toLowerCase().includes(q) || (s.title_ne && s.title_ne.includes(q)) || s.section.toLowerCase().includes(q) || (s.tags && s.tags.some(t => t.includes(q))));
+  if (state.tag) list = list.filter(s => s.tags && s.tags.includes(state.tag));
   lastList = list;
   renderResults(list);
+}
+// tag filter chips, built from whatever tags exist in the data (e.g. Christmas)
+function renderTags() {
+  const tags = [...new Set(songs.flatMap(s => s.tags || []))].sort();
+  const row = $('tag-row');
+  if (!tags.length) { row.hidden = true; return; }
+  row.hidden = false;
+  const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  $('tag-chips').innerHTML = tags.map(t =>
+    `<button class="tag-chip ${state.tag === t ? 'active' : ''}" data-tag="${t}">${cap(t)}</button>`).join('');
 }
 
 /* ---------- bible ---------- */
@@ -101,9 +137,18 @@ function verses(trans) {
 }
 // which translation's verse numbers drive the grid/navigation (Nepali primary)
 function gridVerses() { return verses(state.trans === 'KJV' ? 'KJV' : 'NE'); }
+// chapter numbers for the current book (KJV is the complete canon; fall back to NE)
+function chapterKeys() {
+  const t = (bible.text.KJV && bible.text.KJV[state.book]) || (bible.text.NE && bible.text.NE[state.book]) || {};
+  return Object.keys(t);
+}
 function renderBible() {
   $('book').innerHTML = bible.books.map(b =>
     `<option value="${b.code}" ${b.code === state.book ? 'selected' : ''}>${b.en} · ${b.ne}</option>`).join('');
+  const chaps = chapterKeys();
+  $('chapters').innerHTML = chaps.map(c =>
+    `<button class="${String(c) === String(state.chap) ? 'sel' : ''}" data-c="${c}">${c}</button>`).join('')
+    || '<span class="label">—</span>';
   const vs = Object.keys(gridVerses());
   $('verses').innerHTML = vs.map(v => `<button class="${String(v) === String(state.verse) ? 'sel' : ''}" data-v="${v}">${v}</button>`).join('')
     || '<span class="label">No verses in this chapter</span>';
@@ -115,7 +160,14 @@ function renderBible() {
 }
 
 /* ---------- preview + project ---------- */
+function mediaSrc() {
+  return state.mediaBg ? ('file://' + state.mediaDir + '/' + state.mediaBg) : null;
+}
+function slideBase() {
+  return { bg: state.bg, text: state.text, mediaBg: mediaSrc() };
+}
 function currentSlide() {
+  const base = slideBase();
   if (state.tab === 'songs' && state.song) {
     const song = state.song;
     const foot = `#${String(song.number).padStart(3, '0')} · ${song.title}`;
@@ -124,33 +176,49 @@ function currentSlide() {
       const roman = v.en || '';                      // romanized lyrics live in en
       const ne = state.lyric === 'roman' ? roman : v.ne;
       const en = state.lyric === 'both' ? roman : '';
-      return { ne, en, foot, pos: `Verse ${state.vi + 1} of ${song.verses.length}`, bg: state.bg, text: state.text };
+      return { ...base, ne, en, foot, pos: `Verse ${state.vi + 1} of ${song.verses.length}` };
     }
-    // title-only (no lyrics yet): show the title itself
-    return { ne: song.title_ne || '', en: song.title, foot, pos: song.section, bg: state.bg, text: state.text };
+    return { ...base, ne: song.title_ne || '', en: song.title, foot, pos: song.section };
   }
   if (state.tab === 'bible' && state.verse) {
     const ne = (verses('NE')[state.verse]) || '';
     const en = (verses('KJV')[state.verse]) || '';
     const label = state.trans === 'BOTH' ? 'KJV + NNRV' : state.trans;
     return {
+      ...base,
       ne: state.trans === 'KJV' ? '' : ne,
       en: state.trans === 'NE' ? '' : en,
       foot: `${bookEn(state.book)} ${state.chap}:${state.verse} · ${label}`,
       pos: `${bookEn(state.book)} ${state.chap}:${state.verse} · ${label}`,
-      bg: state.bg, text: state.text,
     };
   }
-  return { ne: '', en: '', foot: '', pos: '', bg: state.bg, text: state.text };
+  return { ...base, ne: '', en: '', foot: '', pos: '' };
 }
 const GRAD_BG = 'linear-gradient(135deg,#1B1A33,#0B0B12)';
+function isVideo(src) { return /\.(mp4|webm|mov)$/i.test(src || ''); }
 function renderPreview() {
   const s = currentSlide();
+  const empty = !s.ne && !s.en;
+  $('pv-empty').style.display = empty ? '' : 'none';
   $('pv-ne').innerHTML = sanctuary.lyricHTML(s.ne);
   $('pv-en').innerHTML = sanctuary.lyricHTML(s.en);
   $('pv-foot').textContent = s.foot;
   $('pos').textContent = s.pos;
   $('preview').style.background = s.bg === 'gradient' ? GRAD_BG : s.bg;
+  // media background in preview
+  const img = $('pv-media-img'), vid = $('pv-media-vid');
+  if (s.mediaBg) {
+    if (isVideo(s.mediaBg)) {
+      img.style.display = 'none';
+      vid.src = s.mediaBg; vid.style.display = 'block'; vid.play();
+    } else {
+      vid.style.display = 'none'; vid.pause();
+      img.src = s.mediaBg; img.style.display = 'block';
+    }
+  } else {
+    img.style.display = 'none';
+    vid.style.display = 'none'; vid.pause();
+  }
   const color = s.text === 'gradient' ? '#2B2B27' : s.text;
   $('pv-ne').style.color = color;
   $('pv-en').style.color = color;
@@ -171,6 +239,7 @@ $('song-count').textContent = `${songs.length} songs in book`;
 
 document.querySelectorAll('[data-go]').forEach(el =>
   el.addEventListener('click', () => { show('op'); setTab(el.dataset.go); }));
+$('go-home').addEventListener('click', () => show('home'));
 
 $('seg').addEventListener('click', e => { if (e.target.dataset.tab) setTab(e.target.dataset.tab); });
 
@@ -179,6 +248,13 @@ $('book-seg').addEventListener('click', e => {
   state.sbook = e.target.dataset.book;
   document.querySelectorAll('#book-seg button').forEach(b => b.classList.toggle('active', b.dataset.book === state.sbook));
   $('num').value = ''; $('q').value = '';
+  filterSongs();
+});
+$('tag-chips').addEventListener('click', e => {
+  const t = e.target.dataset.tag;
+  if (!t) return;
+  state.tag = state.tag === t ? null : t;   // click active chip again to clear
+  renderTags();
   filterSongs();
 });
 $('num').addEventListener('input', filterSongs);
@@ -202,16 +278,26 @@ $('trans').addEventListener('click', e => {
   state.verse = null;
   renderBible();
 });
-$('book').addEventListener('change', e => { state.book = e.target.value; state.verse = null; renderBible(); });
-$('chap').addEventListener('input', e => { state.chap = Number(e.target.value) || 1; state.verse = null; renderBible(); });
+$('book').addEventListener('change', e => { state.book = e.target.value; state.chap = chapterKeys()[0] || 1; state.verse = null; renderBible(); });
+$('chapters').addEventListener('click', e => { if (e.target.dataset.c) { state.chap = e.target.dataset.c; state.verse = null; renderBible(); } });
 $('verses').addEventListener('click', e => { if (e.target.dataset.v) { state.verse = e.target.dataset.v; renderBible(); } });
+
+$('controls-toggle').addEventListener('click', () => {
+  const open = $('controls-body').classList.toggle('open');
+  $('controls-toggle').setAttribute('aria-expanded', String(open));
+});
 
 $('bg-swatches').addEventListener('click', e => { if (e.target.dataset.c) { state.bg = e.target.dataset.c; renderSwatches(); renderPreview(); pushIfLive(); } });
 $('text-swatches').addEventListener('click', e => { if (e.target.dataset.c) { state.text = e.target.dataset.c; renderSwatches(); renderPreview(); pushIfLive(); } });
 $('bg-picker').addEventListener('input', e => { state.bg = e.target.value; renderSwatches(); renderPreview(); pushIfLive(); });
 $('text-picker').addEventListener('input', e => { state.text = e.target.value; renderSwatches(); renderPreview(); pushIfLive(); });
 
-$('lyric-mode').addEventListener('change', e => { state.lyric = e.target.value; renderPreview(); pushIfLive(); });
+$('lyric-seg').addEventListener('click', e => {
+  if (!e.target.dataset.lyric) return;
+  state.lyric = e.target.dataset.lyric;
+  document.querySelectorAll('#lyric-seg button').forEach(b => b.classList.toggle('active', b.dataset.lyric === state.lyric));
+  renderPreview(); pushIfLive();
+});
 
 $('prev').addEventListener('click', () => step(-1));
 $('next').addEventListener('click', () => step(1));
@@ -227,32 +313,91 @@ function step(d) {
   pushIfLive();
 }
 
-$('send').addEventListener('click', () => { isLive = true; project(currentSlide()); });
-$('blank').addEventListener('click', () => { isLive = false; project({ blank: true }); });
-$('logo').addEventListener('click', () => { isLive = false; project({ logo: true }); });
+$('send').addEventListener('click', () => sendLive());
+$('blank').addEventListener('click', () => goLive({ blank: true }, 'Blank screen'));
+$('logo').addEventListener('click', () => goLive({ logo: true }, 'Logo'));
 
 function setFreeze(on) {
   frozen = on;
   const b = $('freeze');
   b.classList.toggle('active', on);
-  b.textContent = on ? '▶ Resume' : '❄ Freeze';
-  if (!on && isLive) project(currentSlide());   // resume: catch projector up to live state
+  b.textContent = on ? 'Resume' : 'Freeze';
+  if (!on && isLive && liveSlide) project(liveSlide);   // resume: re-show the actual live slide
 }
 $('freeze').addEventListener('click', () => setFreeze(!frozen));
-$('close-present').addEventListener('click', () => { isLive = false; setFreeze(false); closeProjector(); });
+$('close-present').addEventListener('click', () => { isLive = false; liveSlide = null; liveLabel = ''; renderLiveBadge(); setFreeze(false); closeProjector(); });
 
 // arrow keys for stage navigation
 document.addEventListener('keydown', e => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;  // don't hijack typing
   if (e.key === 'ArrowRight') step(1);
   if (e.key === 'ArrowLeft') step(-1);
-  if (e.key === ' ') { e.preventDefault(); isLive = true; project(currentSlide()); }
+  if (e.key === ' ') { e.preventDefault(); sendLive(); }
 });
 // arrow keys forwarded from the projector window when it has focus
 sanctuary.onNav(d => step(d));
 
+/* ---------- media backgrounds ---------- */
+function renderMediaGallery() {
+  const gallery = $('media-gallery');
+  const thumbs = state.mediaList.map(name => {
+    const src = 'file://' + state.mediaDir + '/' + name;
+    const sel = state.mediaBg === name ? 'sel' : '';
+    const isVid = isVideo(name);
+    const thumb = isVid
+      ? `<video class="media-thumb ${sel}" src="${src}" data-media="${name}" muted></video>`
+      : `<img class="media-thumb ${sel}" src="${src}" data-media="${name}" />`;
+    return `<span class="media-item">${thumb}<button class="media-rm" data-rm="${name}">&times;</button></span>`;
+  }).join('');
+  gallery.innerHTML = thumbs + '<button class="media-add" id="media-add" title="Add image or video">+</button>';
+}
+
+$('media-gallery').addEventListener('click', async (e) => {
+  // remove button
+  const rm = e.target.closest('[data-rm]');
+  if (rm) {
+    const name = rm.dataset.rm;
+    await sanctuary.removeMedia(name);
+    if (state.mediaBg === name) { state.mediaBg = null; renderPreview(); pushIfLive(); }
+    state.mediaList = await sanctuary.listMedia();
+    renderMediaGallery();
+    return;
+  }
+  // add button
+  if (e.target.closest('.media-add')) {
+    const added = await sanctuary.pickMedia();
+    if (added.length) {
+      state.mediaList = await sanctuary.listMedia();
+      renderMediaGallery();
+    }
+    return;
+  }
+  // select thumbnail
+  const thumb = e.target.closest('[data-media]');
+  if (thumb) {
+    const name = thumb.dataset.media;
+    // toggle: click again to deselect
+    state.mediaBg = state.mediaBg === name ? null : name;
+    renderMediaGallery();
+    renderPreview();
+    pushIfLive();
+  }
+});
+
+// clear media when picking a solid bg color
+$('bg-swatches').addEventListener('click', e => { if (e.target.dataset.c) state.mediaBg = null; renderMediaGallery(); }, true);
+$('bg-picker').addEventListener('input', () => { state.mediaBg = null; renderMediaGallery(); }, true);
+
 /* ---------- init ---------- */
-filterSongs();
-renderSwatches();
-renderBible();
-show('home');
+async function init() {
+  state.mediaDir = await sanctuary.mediaPath();
+  state.mediaList = await sanctuary.listMedia();
+  renderTags();
+  filterSongs();
+  renderSwatches();
+  renderMediaGallery();
+  renderBible();
+  renderLiveBadge();
+  show('home');
+}
+init();

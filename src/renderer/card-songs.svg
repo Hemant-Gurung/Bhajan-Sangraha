@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8e4d4"/>
+      <stop offset="100%" stop-color="#d4cfb8"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a9a6c"/>
+      <stop offset="100%" stop-color="#6e7656"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#f0ebe0"/>
+    </linearGradient>
+    <linearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6e7656"/>
+      <stop offset="100%" stop-color="#555d42"/>
+    </linearGradient>
+    <linearGradient id="note" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6e7656"/>
+      <stop offset="100%" stop-color="#4a5038"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="14" fill="url(#bg)"/>
+  <!-- decorative leaves top-right -->
+  <g opacity=".25">
+    <ellipse cx="340" cy="60" rx="40" ry="14" fill="url(#leaf)" transform="rotate(-30 340 60)"/>
+    <ellipse cx="360" cy="90" rx="35" ry="12" fill="url(#leaf)" transform="rotate(-50 360 90)"/>
+    <ellipse cx="310" cy="40" rx="30" ry="10" fill="url(#leaf)" transform="rotate(-15 310 40)"/>
+    <ellipse cx="370" cy="45" rx="25" ry="9" fill="url(#leaf)" transform="rotate(-60 370 45)"/>
+  </g>
+  <!-- decorative leaves bottom-left -->
+  <g opacity=".2">
+    <ellipse cx="60" cy="350" rx="35" ry="12" fill="url(#leaf)" transform="rotate(30 60 350)"/>
+    <ellipse cx="40" cy="320" rx="30" ry="10" fill="url(#leaf)" transform="rotate(50 40 320)"/>
+    <ellipse cx="90" cy="370" rx="28" ry="9" fill="url(#leaf)" transform="rotate(15 90 370)"/>
+  </g>
+  <!-- open book -->
+  <g transform="translate(200,230)">
+    <!-- left cover -->
+    <path d="M-10,0 L-100,20 L-100,90 L-10,70 Z" fill="url(#cover)" rx="3"/>
+    <!-- right cover -->
+    <path d="M10,0 L100,20 L100,90 L10,70 Z" fill="url(#cover)" rx="3"/>
+    <!-- left pages -->
+    <path d="M-8,-2 L-95,18 L-95,85 L-8,65 Z" fill="url(#page)"/>
+    <!-- right pages -->
+    <path d="M8,-2 L95,18 L95,85 L8,65 Z" fill="url(#page)"/>
+    <!-- spine shadow -->
+    <path d="M-10,0 L0,-8 L10,0 L10,70 L0,62 L-10,70 Z" fill="#d4cfb8" opacity=".5"/>
+    <!-- page lines left -->
+    <g stroke="#c5c0a8" stroke-width="1" opacity=".5">
+      <line x1="-80" y1="30" x2="-18" y2="18"/>
+      <line x1="-80" y1="40" x2="-18" y2="28"/>
+      <line x1="-80" y1="50" x2="-18" y2="38"/>
+      <line x1="-80" y1="60" x2="-18" y2="48"/>
+      <line x1="-80" y1="70" x2="-18" y2="58"/>
+    </g>
+    <!-- page lines right -->
+    <g stroke="#c5c0a8" stroke-width="1" opacity=".5">
+      <line x1="80" y1="30" x2="18" y2="18"/>
+      <line x1="80" y1="40" x2="18" y2="28"/>
+      <line x1="80" y1="50" x2="18" y2="38"/>
+      <line x1="80" y1="60" x2="18" y2="48"/>
+      <line x1="80" y1="70" x2="18" y2="58"/>
+    </g>
+  </g>
+  <!-- music notes -->
+  <g fill="url(#note)">
+    <!-- large note top-left -->
+    <g transform="translate(110,100)">
+      <ellipse cx="0" cy="0" rx="14" ry="10" transform="rotate(-20)"/>
+      <rect x="12" y="-50" width="4" height="50" rx="2"/>
+      <path d="M16,-50 Q32,-55 28,-38 Q24,-28 16,-30" fill="url(#note)"/>
+    </g>
+    <!-- double note top-right -->
+    <g transform="translate(270,120)" opacity=".7">
+      <ellipse cx="0" cy="0" rx="11" ry="8" transform="rotate(-15)"/>
+      <rect x="9" y="-40" width="3.5" height="40" rx="1.5"/>
+      <ellipse cx="35" cy="-5" rx="11" ry="8" transform="rotate(-15)"/>
+      <rect x="44" y="-45" width="3.5" height="40" rx="1.5"/>
+      <rect x="12.5" y="-45" width="35" height="4" rx="2"/>
+    </g>
+    <!-- small note mid-right -->
+    <g transform="translate(310,200)" opacity=".4">
+      <ellipse cx="0" cy="0" rx="9" ry="7" transform="rotate(-20)"/>
+      <rect x="7" y="-32" width="3" height="32" rx="1.5"/>
+      <path d="M10,-32 Q22,-36 19,-24 Q16,-16 10,-18" fill="url(#note)"/>
+    </g>
+    <!-- tiny note bottom-right -->
+    <g transform="translate(290,300)" opacity=".3">
+      <ellipse cx="0" cy="0" rx="8" ry="6" transform="rotate(-10)"/>
+      <rect x="6" y="-26" width="2.5" height="26" rx="1"/>
+    </g>
+  </g>
+  <!-- staff lines decorative -->
+  <g stroke="#6e7656" stroke-width="1.2" opacity=".12">
+    <path d="M80,140 Q200,160 320,130" fill="none"/>
+    <path d="M80,150 Q200,170 320,140" fill="none"/>
+    <path d="M80,160 Q200,180 320,150" fill="none"/>
+  </g>
+</svg>

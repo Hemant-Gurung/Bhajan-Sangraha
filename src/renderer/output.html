@@ -6,7 +6,9 @@
   <title>Bachan & Bhajan — Projector</title>
   <style>
     html, body { height: 100%; background: #fff; }
-    .stage { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6vh 8vw; position: relative; }
+    .stage { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6vh 8vw; position: relative; overflow: hidden; }
+    .stage-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 0; }
+    .content, .o-foot { position: relative; z-index: 1; }
     .content { width: 100%; }
     .o-ne { font-family: var(--deva); font-weight: 700; font-size: 5.2vw; line-height: 1.4; white-space: pre-line; }
     .o-en { font-family: var(--serif); font-size: 3.2vw; margin-top: 2vh; opacity: .85; white-space: pre-line; }
@@ -16,6 +18,8 @@
 </head>
 <body>
   <div class="stage" id="stage">
+    <img class="stage-media" id="stage-media-img" />
+    <video class="stage-media" id="stage-media-vid" muted loop></video>
     <div class="content" id="content">
       <div class="o-ne" id="o-ne"></div>
       <div class="o-en" id="o-en"></div>
@@ -48,10 +52,28 @@
       el.style.background = 'linear-gradient(135deg,#ff8a00,#e52e71,#2af598)';
       if (isText) { el.style.webkitBackgroundClip = 'text'; el.style.webkitTextFillColor = 'transparent'; }
     }
+    const mImg = document.getElementById('stage-media-img');
+    const mVid = document.getElementById('stage-media-vid');
+    function isVid(src) { return /\.(mp4|webm|mov)$/i.test(src || ''); }
+    function showMedia(src) {
+      if (src) {
+        if (isVid(src)) {
+          mImg.style.display = 'none';
+          mVid.src = src; mVid.style.display = 'block'; mVid.play();
+        } else {
+          mVid.style.display = 'none'; mVid.pause();
+          mImg.src = src; mImg.style.display = 'block';
+        }
+      } else {
+        mImg.style.display = 'none';
+        mVid.style.display = 'none'; mVid.pause();
+      }
+    }
     function render(s) {
-      if (s.blank) { stage.style.background = '#000'; document.getElementById('o-ne').textContent = ''; document.getElementById('o-en').textContent = ''; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
-      if (s.logo) { stage.style.background = '#080c1a'; document.getElementById('o-ne').innerHTML = '<img class="logo-mark" src="logo.png" alt="" />'; const e = document.getElementById('o-en'); e.textContent = 'Bachan & Bhajan'; e.style.color = '#E8A33D'; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
+      if (s.blank) { showMedia(null); stage.style.background = '#000'; document.getElementById('o-ne').textContent = ''; document.getElementById('o-en').textContent = ''; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
+      if (s.logo) { showMedia(null); stage.style.background = '#080c1a'; document.getElementById('o-ne').innerHTML = '<img class="logo-mark" src="logo.png" alt="" />'; const e = document.getElementById('o-en'); e.textContent = 'Bachan & Bhajan'; e.style.color = '#E8A33D'; document.getElementById('o-foot-l').textContent = ''; document.getElementById('o-foot-r').textContent = ''; return; }
 
+      showMedia(s.mediaBg || null);
       stage.style.background = s.bg === 'gradient' ? 'linear-gradient(135deg,#1B1A33,#0B0B12)' : (s.bg || '#fff');
       const ne = document.getElementById('o-ne'), en = document.getElementById('o-en');
       ne.innerHTML = sanctuary.lyricHTML(s.ne); en.innerHTML = sanctuary.lyricHTML(s.en);

@@ -7,3 +7,23 @@ src/data/
 *.log
 .DS_Store
 src/data/*.bak
+
+# AI assistant / editor tooling config
+.agents/
+.augment/
+.claude/
+.codebuddy/
+.codex/
+.continue/
+.cursor/
+.factory/
+.gemini/
+.github/
+.kilocode/
+.kiro/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.warp/
+.windsurf/

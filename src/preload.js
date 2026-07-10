@@ -25,4 +25,9 @@ contextBridge.exposeInMainWorld('sanctuary', {
   nav: (dir) => ipcRenderer.send('nav', dir),                 // projector -> operator step
   onNav: (cb) => ipcRenderer.on('nav', (_e, dir) => cb(dir)),
   toggleProjectorFullscreen: () => ipcRenderer.invoke('toggle-projector-fullscreen'),
+  // media backgrounds
+  pickMedia: () => ipcRenderer.invoke('pick-media'),
+  listMedia: () => ipcRenderer.invoke('list-media'),
+  removeMedia: (name) => ipcRenderer.invoke('remove-media', name),
+  mediaPath: () => ipcRenderer.invoke('media-path'),
 });
