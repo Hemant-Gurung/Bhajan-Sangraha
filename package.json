@@ -1,7 +1,7 @@
 {
   "name": "sanctuary",
   "productName": "Bachan & Bhajan",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Offline lyrics & Bible verse presentation for Nepali churches",
   "main": "src/main.js",
   "scripts": {
@@ -42,7 +42,8 @@
     "publish": {
       "provider": "github",
       "owner": "Hemant-Gurung",
-      "repo": "Bhajan-Sangraha"
+      "repo": "Bhajan-Sangraha",
+      "releaseType": "release"
     }
   },
   "dependencies": {

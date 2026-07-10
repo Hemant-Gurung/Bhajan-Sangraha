@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs');
 
 let operatorWin = null;
 let projectorWin = null;
@@ -62,7 +62,7 @@ ipcMain.handle('toggle-projector-fullscreen', () => {
 // ---------- media backgrounds ----------
 function mediaDir() {
   const dir = path.join(app.getPath('userData'), 'media');
-  fs.ensureDirSync(dir);
+  fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
@@ -80,7 +80,7 @@ ipcMain.handle('pick-media', async () => {
   for (const src of filePaths) {
     const name = Date.now() + '-' + path.basename(src);
     const dest = path.join(dir, name);
-    await fs.copy(src, dest);
+    await fs.promises.copyFile(src, dest);
     added.push(name);
   }
   return added;
@@ -88,14 +88,14 @@ ipcMain.handle('pick-media', async () => {
 
 ipcMain.handle('list-media', async () => {
   const dir = mediaDir();
-  const files = await fs.readdir(dir);
+  const files = await fs.promises.readdir(dir);
   const exts = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i;
   return files.filter(f => exts.test(f)).sort();
 });
 
 ipcMain.handle('remove-media', async (_e, filename) => {
   const p = path.join(mediaDir(), path.basename(filename));
-  await fs.remove(p);
+  await fs.promises.rm(p, { force: true });
 });
 
 ipcMain.handle('media-path', () => mediaDir());
