@@ -27,3 +27,4 @@ src/data/*.bak
 .trae/
 .warp/
 .windsurf/
+.playwright-mcp/
