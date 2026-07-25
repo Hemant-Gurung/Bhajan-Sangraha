@@ -307,11 +307,15 @@ function step(d) {
   } else if (state.tab === 'bible' && state.verse) {
     const vs = Object.keys(gridVerses());
     const i = vs.indexOf(String(state.verse)) + d;
-    if (i >= 0 && i < vs.length) { state.verse = vs[i]; renderBible(); pushIfLive(); return; }
+    if (i >= 0 && i < vs.length) { state.verse = vs[i]; renderBible(); stepLive(); return; }
   }
   renderPreview();
-  pushIfLive();
+  stepLive();
 }
+// Next/Previous follow through to the projector once something is live — an operator stepping
+// verses mid-song shouldn't have to press Send again. Staging (colours, picking another song)
+// still waits for Send. Freeze still wins: project() drops the slide while frozen.
+function stepLive() { if (isLive) sendLive(); }
 
 $('send').addEventListener('click', () => sendLive());
 $('blank').addEventListener('click', () => goLive({ blank: true }, 'Blank screen'));
