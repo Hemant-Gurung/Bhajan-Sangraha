@@ -26,6 +26,7 @@
     </div>
     <div class="o-foot"><span id="o-foot-l"></span><span id="o-foot-r"></span></div>
   </div>
+  <script src="browser-shim.js"></script>
   <script>
     const stage = document.getElementById('stage');
     const content = document.getElementById('content');
@@ -55,7 +56,14 @@
     const mImg = document.getElementById('stage-media-img');
     const mVid = document.getElementById('stage-media-vid');
     function isVid(src) { return /\.(mp4|webm|mov)$/i.test(src || ''); }
+    // Only touch the media elements when the background actually changes: re-assigning an
+    // identical .src re-decodes the image (one blank frame) and restarts a video from 0, which
+    // is what made every verse change flash. Stepping verses now only swaps the text.
+    let curMedia = null;
     function showMedia(src) {
+      src = src || null;
+      if (src === curMedia) return;
+      curMedia = src;
       if (src) {
         if (isVid(src)) {
           mImg.style.display = 'none';
