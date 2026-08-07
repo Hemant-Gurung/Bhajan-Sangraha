@@ -1,7 +1,7 @@
 {
   "name": "sanctuary",
   "productName": "Bachan & Bhajan",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Offline lyrics & Bible verse presentation for Nepali churches",
   "main": "src/main.js",
   "scripts": {
