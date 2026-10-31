@@ -73,7 +73,7 @@ const BOOK_LABEL = { bhajan: 'Bhajan', chorus: 'Chorus', children: 'Bal Chorus',
 function rowHTML(s) {
   return `<li class="result book-${s.book} ${state.song && state.song.id === s.id && state.song.book === s.book ? 'active' : ''}" data-id="${s.id}" data-book="${s.book}">
       <span class="rnum">${String(s.number).padStart(3, '0')}</span>
-      <span class="rname"><b class="deva">${s.title_ne || s.title}</b><div class="ne">${s.title}</div></span>
+      <span class="rname"><b class="deva">${s.title_ne || s.title}</b><div class="ne">${s.title}</div>${snippets.has(s) ? `<div class="snip deva">“${snippets.get(s)}”</div>` : ''}</span>
       <span class="rcount"><span class="tag tag-${s.book}">${BOOK_LABEL[s.book] || s.book}</span><div class="cnt">${s.verses.length ? s.verses.length + ' v' : 'title'}</div></span>
     </li>`;
 }
@@ -109,12 +109,19 @@ function selectSong(book, id) {
   if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 let lastList = songs;
+const snippets = new Map();   // song -> matching lyric line, shown under the title while searching
 function filterSongs() {
   const num = $('num').value.trim();
   const q = $('q').value.trim().toLowerCase();
   let list = state.sbook === 'all' ? songs.slice() : songs.filter(s => s.book === state.sbook);
   if (num) list = list.filter(s => String(s.number) === num || String(s.number).startsWith(num));
-  if (q) list = list.filter(s => s.title.toLowerCase().includes(q) || (s.title_ne && s.title_ne.includes(q)) || s.section.toLowerCase().includes(q) || (s.tags && s.tags.some(t => t.includes(q))));
+  snippets.clear();
+  if (q) {
+    const hits = new Map();
+    for (const s of list) { const m = matchSong(s, q); if (m) hits.set(s, m); }
+    list = [...hits.keys()].sort((a, b) => hits.get(a).rank - hits.get(b).rank);
+    hits.forEach((m, s) => m.line && snippets.set(s, m.line));
+  }
   if (state.tag) list = list.filter(s => s.tags && s.tags.includes(state.tag));
   lastList = list;
   renderResults(list);

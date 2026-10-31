@@ -100,6 +100,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); }
 .result .rname { flex: 1; min-width: 0; }
 .result .rname b { font-size: 16px; }
 .result .rname .ne { color: var(--muted); font-size: 14px; }
+.result .rname .snip { color: var(--olive); font-size: 13px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .result .rcount { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .result .rcount .cnt { color: var(--muted); font-size: 12px; }
 .tag { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; padding: 3px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
