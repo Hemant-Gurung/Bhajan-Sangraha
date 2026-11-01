@@ -41,9 +41,9 @@ function romanizeText(s) {
   return (s || '').replace(WORD_RE, w => romanizeWord(w)).replace(/[०-९]/g, d => DIG[d]);
 }
 
-module.exports = { titleFrom, romanizeWord, romanizeText };
+if (typeof module !== 'undefined') module.exports = { titleFrom, romanizeWord, romanizeText };
 
-if (require.main === module) {
+if (typeof require !== 'undefined' && require.main === module) {
   const assert = require('assert');
   const cases = { 'येशू': 'yeshuu', 'प्रभुलाई': 'prabhulaai', 'सर्वदा': 'sarvadaa', 'चाहिन्छ': 'caahinchh',
     'ठूलो': 'thhuulo', 'विशेष': 'visheshh', 'ज्ञान': 'gyaan', 'संसार': 'samsaar', 'फल': 'fal',

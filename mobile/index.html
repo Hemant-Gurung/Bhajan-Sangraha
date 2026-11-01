@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Songs">
+<meta name="theme-color" content="#ECEAE3">
+<link rel="apple-touch-icon" href="../src/renderer/logo.png">
+<title>Bachan &amp; Bhajan Songs</title>
+<style>
+  @font-face {
+    font-family: 'Noto Sans Devanagari';
+    src: url('../assets/fonts/NotoSansDevanagari.ttf') format('truetype');
+    font-weight: 100 900; font-display: swap;
+  }
+  /* tokens: DESIGN.md (desktop app), with a darker label grey for phone legibility */
+  :root {
+    --bg: #ECEAE3; --panel: #FAF8F3; --card: #FFFFFF; --ink: #2B2B27; --muted: #6F6B62; --faint: #9A968C;
+    --line: #E4E0D6; --olive: #6E7656; --terra: #B06A44; --amber: #E8A33D; --danger-bg: #F6E6DE; --warn-bg: #FBF1DC;
+    --serif: Georgia, "Spectral", "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, sans-serif;
+    --deva: "Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari MT", system-ui, sans-serif;
+    --shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--sans); }
+  body { min-height: 100dvh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  #app { max-width: 560px; margin: 0 auto; padding: 14px 16px 120px; }
+
+  .deva { font-family: var(--deva); }
+  .serif { font-family: var(--serif); font-weight: 400; }
+  .label { font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  h1 { font: 400 30px/1.2 var(--serif); margin: 6px 0 2px; }
+  h1.deva { font-family: var(--deva); font-weight: 600; font-size: 26px; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  .topbar .brand { font: 400 24px var(--serif); flex: 1; }
+  .mark { width: 34px; height: 34px; border-radius: 50%; background: var(--olive); color: #fff; display: grid; place-items: center; font: 600 17px var(--deva); }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 6px; }
+  .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--olive); }
+  .pill.off::before { background: var(--faint); }
+  .back { color: var(--olive); font-size: 15px; min-height: 44px; display: inline-flex; align-items: center; gap: 4px; }
+
+  .search { width: 100%; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); }
+  .list { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .cards { display: grid; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 13px 14px; min-height: 56px; background: var(--card); }
+  .list .row + .row { border-top: 1px solid var(--line); }
+  .cards .row { border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+  .row .main { flex: 1; min-width: 0; }
+  .row .name { font-weight: 600; font-size: 16px; }
+  .row .name.deva { font-weight: 500; }
+  .row .sub { color: var(--muted); font-size: 13px; }
+  .row .chev { color: var(--faint); font-size: 20px; }
+
+  .btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; min-height: 48px; padding: 0 18px; border-radius: 12px; font-weight: 600; font-size: 16px; }
+  .btn.primary { background: var(--terra); color: #fff; }
+  .btn.secondary { background: var(--card); border: 1px solid var(--line); }
+  .btn.text { color: var(--terra); }
+  .btn.danger { color: #A1442B; }
+  .btn[disabled] { opacity: .45; }
+  .btn.block { width: 100%; }
+  .fab { position: fixed; right: max(16px, calc(50% - 264px)); bottom: calc(20px + env(safe-area-inset-bottom)); border-radius: 999px; box-shadow: 0 6px 18px rgba(176,106,68,.35); }
+  .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 30%); }
+  .bottom .inner { max-width: 528px; margin: 0 auto; display: flex; gap: 10px; }
+  .bottom .inner > * { flex: 1; }
+  .bottom .inner > .secondary:not(:only-child) { flex: 0 0 34%; }
+
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+  .sheet-head .title { font: 400 20px var(--serif); }
+  .field { display: block; margin-top: 16px; }
+  .field > span { display: flex; justify-content: space-between; font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); font-size: 17px; }
+  .input:focus { outline: none; border-color: var(--olive); box-shadow: 0 0 0 3px rgba(110,118,86,.15); }
+  .input.bad { border-color: var(--terra); }
+  .err { color: var(--terra); font-size: 13px; margin-top: 4px; }
+  textarea.input { min-height: 260px; resize: vertical; line-height: 1.6; }
+  .two { display: grid; grid-template-columns: 1fr 34%; gap: 10px; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .mini { color: var(--olive); font: 13px var(--sans); text-transform: none; letter-spacing: 0; min-height: 28px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 4px 0 12px; min-height: 36px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
+  .chip button { width: 32px; height: 32px; color: var(--faint); font-size: 16px; }
+  .chip.add { padding: 0 14px; color: var(--olive); }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--amber); color: #fff; }
+
+  .banner { border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 14px; }
+  .banner.warn { background: var(--warn-bg); border: 1px solid #F0DDB0; }
+  .banner.bad { background: var(--danger-bg); border: 1px solid #EBCDBF; color: #8A3F25; }
+  .banner b { display: block; }
+
+  .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-top: 16px; }
+  .seg button { flex: 1; min-height: 38px; border-radius: 999px; font-size: 14px; color: var(--muted); }
+  .seg button.on { background: var(--olive); color: #fff; font-weight: 600; }
+  .verse { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 18px; margin-top: 10px; text-align: center; box-shadow: var(--shadow); }
+  .verse .label { margin: 0 0 10px; text-align: left; }
+  .verse .ne { font: 19px/1.7 var(--deva); white-space: pre-line; }
+  .verse .en { color: var(--muted); font-style: italic; font-size: 14px; white-space: pre-line; margin-top: 8px; }
+
+  .empty { text-align: center; padding: 48px 20px; }
+  .empty .icon { width: 56px; height: 56px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); display: grid; place-items: center; margin: 0 auto 14px; font-size: 22px; color: var(--muted); }
+  .empty h2 { font: 400 22px var(--serif); margin-bottom: 6px; }
+  .empty p { color: var(--muted); font-size: 15px; margin-bottom: 18px; }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--olive); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 60px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .scrim { position: fixed; inset: 0; background: rgba(43,43,39,.35); display: flex; align-items: flex-end; z-index: 10; }
+  .sheet { width: 100%; max-width: 560px; margin: 0 auto; background: var(--panel); border-radius: 18px 18px 0 0; padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
+  .sheet h3 { font: 400 22px var(--serif); margin-bottom: 6px; }
+  .sheet p { color: var(--muted); font-size: 15px; margin-bottom: 16px; }
+  .sheet .btn { width: 100%; margin-top: 8px; }
+  .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 20; white-space: nowrap; display: flex; gap: 8px; align-items: center; }
+  .toast::before { content: '✓'; width: 18px; height: 18px; border-radius: 50%; background: var(--olive); display: grid; place-items: center; font-size: 11px; }
+  .toast.bad::before { content: '!'; background: var(--terra); }
+</style>
+</head>
+<body>
+<div id="app"><div class="spinner"></div></div>
+<script src="../tools/romanize.js"></script>
+<script src="../tools/songfile.js"></script>
+<script src="../src/renderer/search.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
