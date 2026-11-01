@@ -1,7 +1,7 @@
 // Phone app for adding / editing / deleting songs in the private songs-data repo, straight through the GitHub API.
 // No server: the GitHub key lives in this phone's storage only. File format + parsing: tools/songfile.js.
 (() => {
-  const OWNER = 'Hemant-Gurung', REPO = 'songs-data';
+  const OWNER = 'Hemant-Gurung', REPO = 'songs-data', APP = 'Bhajan-Sangraha', WORKFLOW = 'publish.yml';
   const LOGO = 'logo.png';   // desktop app logo (src/renderer/logo.png) scaled to 180px
   const $app = document.getElementById('app');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,14 +25,15 @@
 
   /* ---------- GitHub ---------- */
   class ApiError extends Error { constructor(kind, status) { super(kind); this.kind = kind; this.status = status; } }
-  async function gh(path, { method = 'GET', body, raw } = {}) {
+  async function gh(path, { method = 'GET', body, raw, repo = REPO } = {}) {
     let r;
     try {
-      r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}${path}`, {
+      r = await fetch(`https://api.github.com/repos/${OWNER}/${repo}${path}`, {
         method, cache: 'no-store', body: body && JSON.stringify(body),
         headers: {
           Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28',
           Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
       });
     } catch { throw new ApiError('offline'); }
@@ -40,8 +41,10 @@
     if (r.status === 403 || r.status === 404) throw new ApiError('perm', r.status);
     if (r.status === 409 || r.status === 422) throw new ApiError('conflict', r.status);
     if (!r.ok) throw new ApiError('http', r.status);
+    if (r.status === 204) return null;
     return raw ? r.text() : r.json();
   }
+  const app = (path, opts) => gh(path, { ...opts, repo: APP });   // the public app repo: version, publish workflow
   function b64(s) {
     const bytes = new TextEncoder().encode(s);
     let bin = '';
@@ -70,6 +73,112 @@
     });
     Object.assign(a, toArtist(a.file, res.content.sha, text));
     if (!artists.includes(a)) { artists.push(a); artists.sort((x, y) => x.name.localeCompare(y.name)); }
+    await computeChanges().catch(() => {});
+  }
+
+  /* ---------- publishing ---------- */
+  // release.json (written by the Publish workflow) names the songs-data commit that is live in churches.
+  // An artist file whose blob differs from that commit's has unpublished changes.
+  let version = '', base = null, changes = null, run = null, pollTimer = null;
+  const baseText = {};         // blob sha -> file text at the last release
+  const nextVersion = v => v.replace(/(\d+)$/, n => +n + 1);
+  const songsOf = text => splitFile(text).chunks.map(parseSong).filter(Boolean);
+  async function loadPublishInfo() {
+    try { version = JSON.parse(await app('/contents/package.json', { raw: true })).version; } catch { version = ''; }
+    try {
+      const rel = JSON.parse(await app('/contents/release.json', { raw: true }));
+      const tree = await gh(`/git/trees/${rel.data}?recursive=1`);
+      base = { data: rel.data, files: Object.fromEntries(tree.tree.filter(t => t.path.startsWith('other/')).map(t => [t.path.slice(6), t.sha])) };
+    } catch { base = null; }   // no release from the workflow yet: changes can't be tracked
+    await computeChanges().catch(() => { changes = null; });
+    // resume a publish started earlier (app was closed meanwhile), or one started from the Actions tab
+    let saved = null;
+    try { saved = JSON.parse(store.get('publish-run') || 'null'); } catch { /* ignore */ }
+    try {
+      const last = (await app(`/actions/workflows/${WORKFLOW}/runs?per_page=1`)).workflow_runs[0];
+      if (saved) run = saved;
+      else if (last && last.status !== 'completed')
+        run = { id: last.id, url: last.html_url, version: nextVersion(version), steps: [], summary: [], counts: null };
+      if (run) poll();
+    } catch { /* can't see runs: publishing will report it when started */ }
+  }
+  async function computeChanges() {
+    if (!base) { changes = null; return; }
+    const out = {};
+    for (const a of artists) {
+      const old = base.files[a.file];
+      if (old === a.sha) continue;
+      if (old && !(old in baseText)) baseText[old] = await gh(`/git/blobs/${old}`, { raw: true });
+      const before = new Map(old ? songsOf(baseText[old]).map(s => [s.title_ne, songText(s)]) : []);
+      const after = new Map(a.songs.map(s => [s.title_ne, songText(s)]));
+      const c = { newArtist: !old, added: [], edited: [], deleted: [] };
+      for (const [t, txt] of after) if (!before.has(t)) c.added.push(t); else if (before.get(t) !== txt) c.edited.push(t);
+      for (const t of before.keys()) if (!after.has(t)) c.deleted.push(t);
+      if (c.newArtist || c.added.length || c.edited.length || c.deleted.length) out[a.file] = c;
+    }
+    changes = out;
+  }
+  const changeCount = () => changes ? Object.values(changes).reduce((n, c) => n + c.added.length + c.edited.length + c.deleted.length, 0) : 0;
+  function changeLines() {
+    const lines = [];
+    for (const a of artists) {
+      const c = changes && changes[a.file];
+      if (!c) continue;
+      if (c.newArtist) lines.push({ text: `New artist: ${a.name}`, sub: c.added });
+      else if (c.added.length) lines.push({ text: `${plural(c.added.length, 'new song')} in ${a.name}`, sub: c.added });
+      if (c.edited.length) lines.push({ text: `${plural(c.edited.length, 'song')} edited in ${a.name}`, sub: c.edited });
+      if (c.deleted.length) lines.push({ text: `${plural(c.deleted.length, 'song')} removed from ${a.name}`, sub: c.deleted });
+    }
+    return lines;
+  }
+  // phone -> GitHub Actions: start the Publish workflow, then follow the run it created
+  async function startPublish(note) {
+    const v = nextVersion(version), since = Date.now() - 15000;
+    let prev = null;
+    try { prev = (await app(`/actions/workflows/${WORKFLOW}/runs?per_page=1`)).workflow_runs[0]?.id; } catch { /* first run */ }
+    await app(`/actions/workflows/${WORKFLOW}/dispatches`, { method: 'POST', body: { ref: 'main', inputs: { note } } });
+    run = { id: null, version: v, note, since, prev, steps: [], summary: changeLines(), counts: countsNow() };
+    store.set('publish-run', JSON.stringify(run));
+    go('progress');
+    poll();
+  }
+  function countsNow() {
+    const all = Object.values(changes || {});
+    return {
+      added: all.reduce((n, c) => n + c.added.length, 0), edited: all.reduce((n, c) => n + c.edited.length, 0),
+      deleted: all.reduce((n, c) => n + c.deleted.length, 0), artists: all.filter(c => c.newArtist).length,
+    };
+  }
+  const STEP_LABELS = {
+    'Get song data (private repo)': 'Get song data', 'Rebuild song list': 'Rebuild song list', 'Bump version': 'Bump version',
+    'Build and publish installer': 'Build Windows installer & upload', 'Commit version': 'Save version',
+  };
+  function poll() {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(async () => {
+      try {
+        if (!run.id) {   // the dispatch API returns no id: find the run it just created
+          const runs = (await app(`/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=5`)).workflow_runs;
+          const r = runs.find(x => x.id !== run.prev && Date.parse(x.created_at) >= run.since);
+          if (r) Object.assign(run, { id: r.id, url: r.html_url });
+        }
+        if (run.id) {
+          const [r, jobs] = await Promise.all([app(`/actions/runs/${run.id}`), app(`/actions/runs/${run.id}/jobs`)]);
+          run.status = r.status; run.conclusion = r.conclusion; run.url = r.html_url;
+          run.started = r.run_started_at; run.updated = r.updated_at;
+          run.steps = ((jobs.jobs[0] || {}).steps || []).filter(s => STEP_LABELS[s.name])
+            .map(s => ({ label: STEP_LABELS[s.name], status: s.status, conclusion: s.conclusion, started: s.started_at, done: s.completed_at }));
+          store.set('publish-run', JSON.stringify(run));
+        }
+        if (run.status === 'completed') {
+          store.set('publish-run', '');
+          if (route === 'progress' || route === 'home') go(run.conclusion === 'success' ? 'published' : 'failed');
+          return;
+        }
+        if (route === 'progress') render();
+      } catch (e) { if (e.kind === 'offline') online = false; }
+      poll();
+    }, run && run.id ? 5000 : 3000);
   }
   function handleError(e, loading) {
     if (e.kind === 'key' || (e.kind === 'perm' && loading)) {
@@ -97,28 +206,43 @@
       || a.songs.some(s => norm(s.title_ne + ' ' + romanizeText(s.title_ne)).includes(t)));
     return `<div class="label">Artists · ${shown.length}</div><div class="cards">${shown.map(a => `
       <button class="row" data-go="artist" data-file="${esc(a.file)}">
-        <div class="main"><div class="name">${esc(a.name)}</div><div class="sub">${plural(a.songs.length, 'song')}</div></div>
-        <span class="chev">›</span></button>`).join('') || '<p class="muted">No artist or song matches.</p>'}</div>`;
+        <div class="main"><div class="name">${esc(a.name)}</div><div class="sub">${plural(a.songs.length, 'song')}${changes && changes[a.file] && changes[a.file].newArtist ? ' · new artist' : ''}</div></div>
+        ${badge(a.file)}<span class="chev">›</span></button>`).join('') || '<p class="muted">No artist or song matches.</p>'}</div>`;
+  }
+  function badge(file) {
+    const c = changes && changes[file];
+    if (!c) return '';
+    const n = c.added.length + c.edited.length + c.deleted.length;
+    return n ? `<span class="badge">${c.edited.length || c.deleted.length ? n + ' changed' : '+' + n + ' new'}</span>` : '';
   }
   function viewHome() {
+    const n = changeCount(), busy = run && run.status !== 'completed';
+    const bar = busy ? `<button class="pubbar" data-go="progress"><span class="dot spin"></span><span>Publishing v${esc(run.version)}…</span><b>View ›</b></button>`
+      : n ? `<button class="pubbar" data-act="publish"><span class="dot"></span><span>${plural(n, 'change')} ready</span><b class="go">Publish ›</b></button>`
+      : `<button class="pubbar quiet" data-act="publish"><span>${base ? 'Everything is published' : 'Publish a new version'}</span><b>›</b></button>`;
     return `${topbar()}
       <input class="search" id="q" type="search" placeholder="Search artist or song…" value="${esc(q)}" autocomplete="off">
       <div id="artist-list">${artistCards()}</div>
-      <button class="btn primary fab" data-act="add">＋ Add song</button>`;
+      <button class="btn primary fab" data-act="add">＋ Add song</button>
+      <div class="bottom"><div class="inner">${bar}</div></div>`;
   }
   function viewArtist() {
     const a = artistOf(routeFile);
     if (!a) { route = 'home'; return viewHome(); }
+    const c = (changes && changes[a.file]) || { added: [], edited: [], deleted: [] };
+    const state = s => c.added.includes(s.title_ne) ? 'new' : c.edited.includes(s.title_ne) ? 'edited' : '';
+    const pending = c.added.length + c.edited.length + c.deleted.length;
     const body = a.songs.length ? `<div class="label">Songs · ${a.songs.length}</div><div class="list">${a.songs.map(s => `
         <button class="row" data-act="edit" data-ci="${s.ci}">
           <div class="main"><div class="name deva">${esc(s.title_ne)}</div>
-            <div class="sub">${plural(s.verses.length, 'verse')}${s.key ? ' · Key ' + esc(s.key) : ''}${s.tags.length ? ' · ' + esc(s.tags.join(', ')) : ''}</div></div>
-          <span class="chev">›</span></button>`).join('')}</div>`
+            <div class="sub">${plural(s.verses.length, 'verse')}${s.key ? ' · Key ' + esc(s.key) : ''}${s.tags.length ? ' · ' + esc(s.tags.join(', ')) : ''}${state(s) ? ` · <span class="pending">${state(s)}, not published</span>` : ''}</div></div>
+          ${state(s) ? '<span class="dot"></span>' : ''}<span class="chev">›</span></button>`).join('')}</div>`
       : `<div class="empty"><div class="icon">♫</div><h2>No songs yet</h2>
           <p>Add the first song for ${esc(a.name)}. It goes out to churches with the next version.</p>
           <button class="btn primary" data-act="add" data-file="${esc(a.file)}">＋ Add song to this artist</button></div>`;
     return `<button class="back" data-go="home">‹ Artists</button>
-      <h1>${esc(a.name)}</h1><div class="muted">${plural(a.songs.length, 'song')}</div>${body}
+      <h1>${esc(a.name)}</h1><div class="muted">${plural(a.songs.length, 'song')}${pending ? ` · ${pending} not published yet` : ''}</div>
+      ${c.deleted.length ? `<div class="banner warn">Removed, not published yet: <span class="deva">${c.deleted.map(esc).join(', ')}</span></div>` : ''}${body}
       ${a.songs.length ? `<div class="bottom"><div class="inner"><button class="btn secondary" data-act="add" data-file="${esc(a.file)}">＋ Add song to this artist</button></div></div>` : ''}`;
   }
   function viewForm() {
@@ -199,7 +323,67 @@
       <p>Songs and saving come back once you're connected.</p>
       <button class="btn secondary" data-act="retry">↻ Retry</button></div>`;
   }
-  const views = { home: viewHome, artist: viewArtist, form: viewForm, preview: viewPreview, setup: viewSetup, offline: viewOffline };
+  function releaseNote() {
+    const lines = changeLines().map(l => l.text);
+    return lines.length ? lines.join('; ') + '.' : 'Song updates.';
+  }
+  function viewPublish() {
+    const v = nextVersion(version), lines = changeLines();
+    const what = !base
+      ? '<p class="muted">The first publish from the phone can\'t list changes yet. Everything saved goes out. From the next one on, this shows exactly what changed.</p>'
+      : lines.length ? `<div class="list">${lines.map(l => `<div class="row"><span class="dot"></span><div class="main"><div class="name">${esc(l.text)}</div>
+          ${l.sub.length ? `<div class="sub deva">${l.sub.map(esc).join(' · ')}</div>` : ''}</div></div>`).join('')}</div>`
+      : '<p class="muted">Nothing new since the last publish. You can still publish, but churches would get the same songs.</p>';
+    return `<button class="back" data-go="home">‹ Songs</button>
+      <div class="versions"><div><div class="label">Current</div><div class="old">v${esc(version || '?')}</div></div><span>→</span>
+        <div><div class="label">New</div><div class="new">v${esc(v)}</div></div></div>
+      <div class="label">What's new</div>${what}
+      <label class="field"><span>Release note <em>auto-filled · editable</em></span>
+        <textarea class="input" id="f-note" style="min-height:96px">${esc(releaseNote())}</textarea></label>
+      <div class="banner bad">⚠ This sends an update to every church using the app.</div>
+      <div class="bottom"><div class="inner"><button class="btn primary" data-act="publish-ask" ${version ? '' : 'disabled'}>Publish v${esc(v)}</button></div></div>`;
+  }
+  function stepList() {
+    const icon = s => s.conclusion === 'success' ? '<span class="tick">✓</span>' : s.conclusion === 'failure' ? '<span class="tick bad">!</span>'
+      : s.conclusion === 'skipped' ? '<span class="tick off">–</span>' : s.status === 'in_progress' ? '<span class="dot spin"></span>' : '<span class="tick off"></span>';
+    const secs = s => s.started && s.done ? Math.max(1, Math.round((Date.parse(s.done) - Date.parse(s.started)) / 1000)) : 0;
+    const steps = run.steps.length ? run.steps : Object.values(STEP_LABELS).map(label => ({ label, status: 'queued' }));
+    return `<div class="list">${steps.map(s => `<div class="row step ${s.conclusion === 'failure' ? 'failed' : ''}">${icon(s)}
+      <div class="main"><div class="name">${esc(s.label)}</div></div><span class="sub">${secs(s) ? fmtTime(secs(s)) : ''}</span></div>`).join('')}</div>`;
+  }
+  const fmtTime = s => s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`;
+  function viewProgress() {
+    if (!run) { route = 'home'; return viewHome(); }
+    return `<button class="back" data-go="home">‹ Songs</button>
+      <div class="label" style="margin-top:4px">Publishing</div><h1>Publishing v${esc(run.version)}</h1>
+      <p class="muted">${run.id ? 'Runs on GitHub. Usually 5–10 minutes. You can close the app; it picks up again when you come back.' : 'Starting on GitHub…'}</p>
+      <div style="margin-top:16px">${stepList()}</div>
+      ${run.url ? `<a class="btn text block" href="${esc(run.url)}" target="_blank" rel="noopener">View on GitHub ↗</a>` : ''}`;
+  }
+  function viewPublished() {
+    const c = run.counts, took = run.started && run.updated ? fmtTime(Math.round((Date.parse(run.updated) - Date.parse(run.started)) / 1000)) : '';
+    const rows = [c && c.added && ['New songs', c.added], c && c.edited && ['Edited songs', c.edited], c && c.deleted && ['Removed songs', c.deleted],
+      c && c.artists && ['New artists', c.artists], took && ['Took', took]].filter(Boolean);
+    return `<div class="empty" style="padding-top:70px"><div class="bigtick">✓</div><h1>v${esc(run.version)} published</h1>
+        <p>Churches will get it next time they open the app.</p></div>
+      ${rows.length ? `<div class="list">${rows.map(([k, v]) => `<div class="row"><div class="main">${k}</div><b>${esc(v)}</b></div>`).join('')}</div>` : ''}
+      <div class="bottom"><div class="inner"><button class="btn secondary" data-act="publish-done">Done</button></div></div>`;
+  }
+  function viewFailed() {
+    const failed = run.steps.find(s => s.conclusion === 'failure');
+    const late = failed && failed.label === STEP_LABELS['Commit version'];   // installer already uploaded
+    return `<div class="label" style="margin-top:20px">Publishing</div>
+      <h1>v${esc(run.version)} ${late ? 'went out, with a problem' : "didn't go out"}</h1>
+      <p class="muted" style="margin-bottom:16px">${late
+        ? 'Churches will get the update, but the new version number wasn\'t saved. Tell Claude (or check GitHub) before publishing again.'
+        : `${failed ? esc(failed.label) + ' stopped. ' : ''}Your songs are safe and nothing reached churches. Retry runs the publish again.`}</p>
+      ${stepList()}
+      <div class="bottom"><div class="inner">
+        ${run.url ? `<a class="btn secondary" href="${esc(run.url)}" target="_blank" rel="noopener">Show log</a>` : ''}
+        ${late ? '<button class="btn primary" data-act="publish-done">Done</button>' : '<button class="btn primary" data-act="publish-retry">Retry</button>'}</div></div>`;
+  }
+  const views = { home: viewHome, artist: viewArtist, form: viewForm, preview: viewPreview, setup: viewSetup, offline: viewOffline,
+    publish: viewPublish, progress: viewProgress, published: viewPublished, failed: viewFailed };
   function render() { $app.innerHTML = views[route]() || ''; }
   function go(r, file) {
     route = r;
@@ -328,11 +512,39 @@
     },
     'del-confirm'(el) { el.disabled = true; el.textContent = 'Deleting…'; del(); },
     'sheet-close': closeSheet,
+    publish() { if (run && run.status !== 'completed') return go('progress'); go('publish'); },
+    'publish-ask'() {
+      const v = nextVersion(version), c = countsNow();
+      sheet(`<h3>Publish v${esc(v)}?</h3>
+        <p>Every church using Bachan &amp; Bhajan will be offered this update the next time they open the app.</p>
+        <p>A published version can't be taken back, only replaced by a newer one.</p>
+        ${changes ? `<div class="chips" style="margin-bottom:8px">${c.added + c.edited + c.deleted ? `<span class="chip add">${plural(c.added + c.edited + c.deleted, 'change')}</span>` : ''}${c.artists ? `<span class="chip add">${plural(c.artists, 'new artist')}</span>` : ''}</div>` : ''}
+        <button class="btn primary" data-act="publish-go">Yes, publish v${esc(v)}</button>
+        <button class="btn secondary" data-act="sheet-close">Cancel</button>`);
+    },
+    async 'publish-go'(el) {
+      const note = (document.getElementById('f-note')?.value || releaseNote()).trim();
+      el.disabled = true; el.textContent = 'Starting…';
+      try { await startPublish(note); closeSheet(); } catch (e) {
+        closeSheet();
+        if (e.kind === 'perm') toast("Your key can't start publishing. Give it Bhajan-Sangraha → Actions: Read and write.", true);
+        else handleError(e);
+      }
+    },
+    async 'publish-retry'(el) {
+      el.disabled = true;
+      try { await startPublish(run.note || releaseNote()); } catch (e) { el.disabled = false; handleError(e); }
+    },
+    async 'publish-done'() {
+      run = null;
+      $app.innerHTML = '<div class="spinner"></div>';
+      try { await load(); await loadPublishInfo(); go('home'); } catch (e) { handleError(e, true); }
+    },
     async connect(el) {
       const v = document.getElementById('f-token').value.trim();
       if (!v) return;
       token = v; setupError = ''; el.disabled = true; el.textContent = 'Connecting…';
-      try { await load(); store.set('gh-token', token); go('home'); } catch (e) { handleError(e, true); }
+      try { await load(); store.set('gh-token', token); await loadPublishInfo(); go('home'); } catch (e) { handleError(e, true); }
     },
     retry: boot,
   };
@@ -356,7 +568,7 @@
   async function boot() {
     if (!token) return go('setup');
     $app.innerHTML = '<div class="spinner"></div>';
-    try { await load(); go('home'); } catch (e) { handleError(e, true); }
+    try { await load(); await loadPublishInfo(); go('home'); } catch (e) { handleError(e, true); }
   }
   boot();
 })();
