@@ -2,6 +2,7 @@
 // No server: the GitHub key lives in this phone's storage only. File format + parsing: tools/songfile.js.
 (() => {
   const OWNER = 'Hemant-Gurung', REPO = 'songs-data';
+  const LOGO = 'logo.png';   // desktop app logo (src/renderer/logo.png) scaled to 180px
   const $app = document.getElementById('app');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
@@ -87,7 +88,7 @@
   /* ---------- views ---------- */
   const artistOf = file => artists.find(a => a.file === file);
   function topbar() {
-    return `<div class="topbar"><div class="mark">भ</div><div class="brand">Songs</div>
+    return `<div class="topbar"><img class="mark" src="${LOGO}" alt=""><div class="brand">Songs</div>
       <span class="pill ${online ? '' : 'off'}">${online ? 'Online' : 'Offline'}</span></div>`;
   }
   function artistCards() {
@@ -177,7 +178,7 @@
         <button class="btn primary" data-act="save" ${saving ? 'disabled' : ''}>${saving ? 'Saving…' : 'Save song'}</button></div></div>`;
   }
   function viewSetup() {
-    return `<div style="text-align:center;padding-top:40px"><div class="mark" style="margin:0 auto;width:52px;height:52px;font-size:24px">भ</div>
+    return `<div style="text-align:center;padding-top:40px"><img class="mark" src="${LOGO}" alt="" style="margin:0 auto;width:64px;height:64px">
         <div class="label" style="margin-top:14px">Bachan &amp; Bhajan · Songs</div>
         <h1>Connect to GitHub</h1><p class="muted">Paste your GitHub key once. It stays on this phone only.</p></div>
       ${setupError ? `<div class="banner bad">${esc(setupError)}</div>` : ''}

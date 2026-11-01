@@ -8,7 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Songs">
 <meta name="theme-color" content="#ECEAE3">
-<link rel="apple-touch-icon" href="../src/renderer/logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="icon" type="image/png" href="logo.png">
 <title>Bachan &amp; Bhajan Songs</title>
 <style>
   @font-face {
@@ -42,7 +43,7 @@
 
   .topbar { display: flex; align-items: center; gap: 10px; min-height: 44px; }
   .topbar .brand { font: 400 24px var(--serif); flex: 1; }
-  .mark { width: 34px; height: 34px; border-radius: 50%; background: var(--olive); color: #fff; display: grid; place-items: center; font: 600 17px var(--deva); }
+  .mark { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; display: block; }
   .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 6px; }
   .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--olive); }
   .pill.off::before { background: var(--faint); }
