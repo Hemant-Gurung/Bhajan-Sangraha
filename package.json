@@ -21,7 +21,9 @@
   "build": {
     "appId": "org.sanctuary.app",
     "files": [
-      "src/**/*",
+      "src/*.js",
+      "src/renderer/**/*",
+      "src/data/{bhajan2,chorus,balchorus,other,bible}.json",
       "assets/**/*"
     ],
     "win": {

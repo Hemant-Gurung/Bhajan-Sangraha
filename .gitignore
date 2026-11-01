@@ -18,7 +18,8 @@ src/data/*.bak
 .cursor/
 .factory/
 .gemini/
-.github/
+.github/*
+!.github/workflows/
 .kilocode/
 .kiro/
 .opencode/
@@ -28,3 +29,6 @@ src/data/*.bak
 .warp/
 .windsurf/
 .playwright-mcp/
+
+# archived lyric sources & backups — local only, like src/data
+archive/data/

@@ -1,0 +1,62 @@
+# Build the Windows installer from the private song data and publish it as a GitHub release.
+# Started from the phone app (or the Actions tab) — no Mac needed.
+# This repo is public, so the log must never print lyrics or titles: only counts.
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: Release note (e.g. "2 new songs in New Life Kathmandu")
+        required: false
+        default: new songs
+
+permissions:
+  contents: write
+
+concurrency: publish   # one release at a time
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get song data (private repo)
+        uses: actions/checkout@v4
+        with:
+          repository: Hemant-Gurung/songs-data
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+          path: src/data
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Rebuild song list
+        run: node tools/parse_other.js | head -1
+
+      - name: Bump version
+        id: version
+        run: echo "v=$(npm version patch --no-git-tag-version | tr -d v)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish installer
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit version
+        env:
+          NOTE: ${{ inputs.note }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "Release ${{ steps.version.outputs.v }}: $NOTE"
+          git push
