@@ -3,7 +3,10 @@
 //   @Artist Name      -> optional first line; sets the display name (else derived from filename)
 //   <title>           -> first line of a song block, optionally ending in "( key )" (or a 2nd "( key )" line)
 //   #tag #tag         -> optional tag lines anywhere in the song
-//   ...lyric lines...  -> one blank line between verses; TWO blank lines between songs
+//   ...lyric lines...  -> blank line(s) between verses
+//   ---               -> a line of dashes ends a song / separates songs
+// Files without any "---" line use the old rule (TWO blank lines between songs); joinFile always writes "---".
+// Section labels ("Verse 1", "Chorus", "Bridge" ...) and "Music ..." lines are notes, never projected.
 // Run this file to self-check: every artist file must survive parse -> write -> parse unchanged.
 
 function isScale(line) {
@@ -13,7 +16,9 @@ function isScale(line) {
   return /major|minor|fret|fast|\d\s*\/\s*\d|¾/i.test(c) || /^[\sA-Ga-g#♭b,\/=0-9]+$/.test(c);
 }
 const stripScale = line => line.replace(/\s*\([^)]*\)\s*$/, '').trim();
-const isNoise = line => /^\s*Music\b/i.test(line);
+const isNoise = line => /^\s*Music\b/i.test(line)
+  || /^\s*(verse|chorus|bridge|pre-?chorus|intro|outro|refrain|interlude)\s*\d*\s*[:.\-]?\s*$/i.test(line);
+const SEP_RE = /^[ \t]*-{3,}[ \t]*$/m;
 // pure hashtag lines (e.g. "#christmas"); strict so lyric "# 1." isn't eaten
 const isTagLine = l => /^#[^\s#]+(\s+#[^\s#]+)*$/.test(l.trim());
 
@@ -23,7 +28,8 @@ function splitFile(raw) {
   let artist = null;
   const m = body.match(/^\s*@(.+)\n/);
   if (m) { artist = m[1].trim(); body = body.slice(m[0].length); }
-  return { artist, chunks: body.split(/\n[ \t]*\n[ \t]*\n+/).map(c => c.trim()).filter(Boolean) };
+  const parts = SEP_RE.test(body) ? body.split(new RegExp(SEP_RE.source, 'gm')) : body.split(/\n[ \t]*\n[ \t]*\n+/);
+  return { artist, chunks: parts.map(c => c.trim()).filter(Boolean) };
 }
 
 // one song block -> { title_ne, key, tags, verses: [ne text] }, or null if it holds no lyrics/title
@@ -52,7 +58,8 @@ function songText(s) {
   return [head.join('\n'), ...s.verses].join('\n\n');
 }
 
-const joinFile = (artist, chunks) => (artist ? `@${artist}\n\n\n` : '') + chunks.join('\n\n\n') + '\n';
+// every song ends with "---", so even a one-song file is in the new format
+const joinFile = (artist, chunks) => (artist ? `@${artist}\n\n` : '') + chunks.map(c => `${c}\n\n---\n`).join('\n');
 
 if (typeof module !== 'undefined') module.exports = { splitFile, parseSong, songText, joinFile, isScale };
 
@@ -68,5 +75,11 @@ if (typeof require !== 'undefined' && require.main === module) {
   }
   const s = { title_ne: 'नयाँ गीत', key: 'G major', tags: ['christmas'], verses: ['पद १\nलाइन', 'पद २'] };
   assert.deepStrictEqual(parseSong(songText(s)), s);
+  // new format: extra blank lines stay inside the song; labels are dropped; old two-blank-lines files still work
+  const f = splitFile('@X\n\nगीत एक\n\nपद १\nVerse 2\n\n\n\nपद २\n\n---\n\nगीत दुई\n\nपद\n---\n');
+  assert.strictEqual(f.artist, 'X');
+  assert.deepStrictEqual(f.chunks.map(parseSong).map(x => [x.title_ne, x.verses]), [['गीत एक', ['पद १', 'पद २']], ['गीत दुई', ['पद']]]);
+  assert.strictEqual(splitFile('गीत एक\n\nपद\n\n\nगीत दुई\n\nपद').chunks.length, 2);
+  assert.deepStrictEqual(splitFile(joinFile('X', ['गीत\n\nपद'])), { artist: 'X', chunks: ['गीत\n\nपद'] });
   console.log('songfile ok');
 }
