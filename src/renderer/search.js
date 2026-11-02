@@ -62,4 +62,13 @@ function matchSong(s, query) {
   return { rank, line: hit ? hit.text : '' };
 }
 
-if (typeof module !== 'undefined') module.exports = { norm, within, matchSong };
+// Duplicate check: a song's distinct normalized lyric lines (very short ones like "आमेन" are too common to count)
+const lyricLines = verses => [...new Set(verses.flatMap(v => v.split('\n')).map(norm).filter(l => l.length >= 8))];
+// share of the shorter song's lines that also appear in the other: 1 = same lyrics, 0 = nothing shared
+function overlap(a, b) {
+  const B = new Set(b);
+  return a.filter(l => B.has(l)).length / (Math.min(a.length, b.length) || 1);
+}
+const DUP = 0.5;   // half the lines shared -> same song
+
+if (typeof module !== 'undefined') module.exports = { norm, within, matchSong, lyricLines, overlap, DUP };

@@ -276,12 +276,13 @@
       <div class="bottom"><div class="inner"><button class="btn primary" data-act="preview">Preview</button></div></div>`;
   }
   function similarSongs() {
-    const t = norm(draft.title_ne);
+    const t = norm(draft.title_ne), mine = lyricLines(versesOf(draft.lyrics));
     const out = [];
     for (const a of artists) for (const s of a.songs) {
       if (draft.mode === 'edit' && a.file === draft.file && s.ci === draft.ci) continue;
       const u = norm(s.title_ne);
-      if (u === t || (t.length >= 6 && within(t, u, 2))) out.push(`${esc(s.title_ne)} — ${esc(a.name)}`);
+      if (u === t || (t.length >= 6 && within(t, u, 2)) || (mine.length && overlap(mine, lyricLines(s.verses)) >= DUP))
+        out.push(`${esc(s.title_ne)} — ${esc(a.name)}`);
     }
     return out.slice(0, 3);
   }
