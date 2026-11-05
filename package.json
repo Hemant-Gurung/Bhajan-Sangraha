@@ -12,8 +12,8 @@
     "dist:mac": "electron-builder --mac",
     "publish": "env $(grep -v '^#' .env | xargs) electron-builder --win --publish always"
   },
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Hemant Gurung <hgurung316@gmail.com>",
+  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3"
