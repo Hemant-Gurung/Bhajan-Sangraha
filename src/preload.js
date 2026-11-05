@@ -7,20 +7,6 @@ const songs = [].concat(
 );
 const bible = require('./data/bible.json');
 
-// Long verses autofit to tiny text on the projector, so show them as several slides of at most
-// MAX_LINES lines, split evenly (6 -> 3+3, 9 -> 3+3+3). Only the display changes; the data stays as is.
-const MAX_LINES = 4;
-function splitVerse(v) {
-  const ne = v.ne.split('\n').filter(l => l.trim()), en = (v.en || '').split('\n').filter(l => l.trim());
-  if (ne.length <= MAX_LINES) return [v];
-  const size = Math.ceil(ne.length / Math.ceil(ne.length / MAX_LINES));
-  const out = [];
-  for (let i = 0; i < ne.length; i += size)
-    out.push({ ne: ne.slice(i, i + size).join('\n'), en: en.slice(i, i + size).join('\n') });   // en is romanized line-by-line
-  return out;
-}
-for (const s of songs) s.verses = s.verses.flatMap(splitVerse);
-
 // Render a verse as escaped HTML, one <br> per source line break.
 function lyricHTML(text) {
   return (text || '')

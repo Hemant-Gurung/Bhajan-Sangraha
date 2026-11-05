@@ -59,7 +59,6 @@ function setTab(tab) {
   state.tab = tab;
   $('left-songs').classList.toggle('hidden', tab !== 'songs');
   $('left-bible').classList.toggle('hidden', tab !== 'bible');
-  $('lyric-row').classList.toggle('hidden', tab === 'bible');   // Lyrics toggle is songs-only
 
   $('op-label').textContent = (tab === 'songs' ? 'Songs' : 'Bible') + ' — Operator panel';
   document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
@@ -173,17 +172,31 @@ function mediaSrc() {
 function slideBase() {
   return { bg: state.bg, text: state.text, mediaBg: mediaSrc() };
 }
+// Long verses autofit to tiny text on the projector, so show them as slides of at most 4 lines,
+// or 2 when Nepali and Roman are both on screen (each line then shows twice). Split evenly: 6 -> 3+3.
+function slidesOf(song) {
+  const max = state.lyric === 'both' ? 2 : 4;
+  return song.verses.flatMap(v => {
+    const ne = v.ne.split('\n').filter(l => l.trim()), en = (v.en || '').split('\n').filter(l => l.trim());
+    if (ne.length <= max) return [v];
+    const size = Math.ceil(ne.length / Math.ceil(ne.length / max));
+    const out = [];
+    for (let i = 0; i < ne.length; i += size)
+      out.push({ ne: ne.slice(i, i + size).join('\n'), en: en.slice(i, i + size).join('\n') });   // en is romanized line-by-line
+    return out;
+  });
+}
 function currentSlide() {
   const base = slideBase();
   if (state.tab === 'songs' && state.song) {
     const song = state.song;
     const foot = `#${String(song.number).padStart(3, '0')} · ${song.title}`;
     if (song.verses.length) {
-      const v = song.verses[state.vi];
+      const slides = slidesOf(song), v = slides[state.vi];
       const roman = v.en || '';                      // romanized lyrics live in en
       const ne = state.lyric === 'roman' ? roman : v.ne;
       const en = state.lyric === 'both' ? roman : '';
-      return { ...base, ne, en, foot, pos: `Verse ${state.vi + 1} of ${song.verses.length}` };
+      return { ...base, ne, en, foot, pos: `Slide ${state.vi + 1} of ${slides.length}` };
     }
     return { ...base, ne: song.title_ne || '', en: song.title, foot, pos: song.section };
   }
@@ -195,6 +208,7 @@ function currentSlide() {
       ...base,
       ne: state.trans === 'KJV' ? '' : ne,
       en: state.trans === 'NE' ? '' : en,
+      num: state.verse,   // shown as a small raised number before the verse text
       foot: `${bookEn(state.book)} ${state.chap}:${state.verse} · ${label}`,
       pos: `${bookEn(state.book)} ${state.chap}:${state.verse} · ${label}`,
     };
@@ -203,12 +217,14 @@ function currentSlide() {
 }
 const GRAD_BG = 'linear-gradient(135deg,#1B1A33,#0B0B12)';
 function isVideo(src) { return /\.(mp4|webm|mov)$/i.test(src || ''); }
+// verse text with its number raised in front, like a printed Bible ("³ Some time later...")
+const verseHTML = (num, text) => (num && text ? `<sup class="vn">${num}</sup>` : '') + sanctuary.lyricHTML(text);
 function renderPreview() {
   const s = currentSlide();
   const empty = !s.ne && !s.en;
   $('pv-empty').style.display = empty ? '' : 'none';
-  $('pv-ne').innerHTML = sanctuary.lyricHTML(s.ne);
-  $('pv-en').innerHTML = sanctuary.lyricHTML(s.en);
+  $('pv-ne').innerHTML = verseHTML(s.num, s.ne);
+  $('pv-en').innerHTML = verseHTML(s.num, s.en);
   $('pv-foot').textContent = s.foot;
   $('pos').textContent = s.pos;
   $('preview').style.background = s.bg === 'gradient' ? GRAD_BG : s.bg;
@@ -282,6 +298,8 @@ $('trans').addEventListener('click', e => {
   if (!e.target.dataset.t) return;
   state.trans = e.target.dataset.t;
   document.querySelectorAll('#trans button').forEach(b => b.classList.toggle('active', b.dataset.t === state.trans));
+  $('trans-now').textContent = e.target.textContent;
+  $('trans-box').open = false;
   state.verse = null;
   renderBible();
 });
@@ -303,6 +321,7 @@ $('lyric-seg').addEventListener('click', e => {
   if (!e.target.dataset.lyric) return;
   state.lyric = e.target.dataset.lyric;
   document.querySelectorAll('#lyric-seg button').forEach(b => b.classList.toggle('active', b.dataset.lyric === state.lyric));
+  if (state.song) state.vi = Math.min(state.vi, slidesOf(state.song).length - 1);   // ponytail: slide count changes with the mode; clamp rather than map the position
   renderPreview(); pushIfLive();
 });
 
@@ -310,7 +329,7 @@ $('prev').addEventListener('click', () => step(-1));
 $('next').addEventListener('click', () => step(1));
 function step(d) {
   if (state.tab === 'songs' && state.song) {
-    state.vi = Math.max(0, Math.min(state.song.verses.length - 1, state.vi + d));
+    state.vi = Math.max(0, Math.min(slidesOf(state.song).length - 1, state.vi + d));
   } else if (state.tab === 'bible' && state.verse) {
     const vs = Object.keys(gridVerses());
     const i = vs.indexOf(String(state.verse)) + d;
@@ -341,6 +360,11 @@ $('close-present').addEventListener('click', () => { isLive = false; liveSlide =
 // arrow keys for stage navigation
 document.addEventListener('keydown', e => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;  // don't hijack typing
+  if (!$('view-home').classList.contains('hidden')) {             // home: S = songs, B = bible
+    const go = { s: 'songs', b: 'bible' }[e.key.toLowerCase()];
+    if (go) { show('op'); setTab(go); }
+    return;
+  }
   if (e.key === 'ArrowRight') step(1);
   if (e.key === 'ArrowLeft') step(-1);
   if (e.key === ' ') { e.preventDefault(); sendLive(); }

@@ -11,8 +11,8 @@
     .content, .o-foot { position: relative; z-index: 1; }
     .content { width: 100%; }
     .o-ne { font-family: var(--deva); font-weight: 700; font-size: 5.2vw; line-height: 1.4; white-space: pre-line; }
-    .o-en { font-family: var(--serif); font-size: 3.2vw; margin-top: 2vh; opacity: .85; white-space: pre-line; }
-    .o-foot { position: absolute; bottom: 5vh; width: 84vw; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 1.2vw; letter-spacing: .12em; text-transform: uppercase; opacity: .55; }
+        .o-en { font-family: var(--serif); font-size: 3.2vw; margin-top: 2vh; opacity: .85; white-space: pre-line; }
+    .o-foot { position: absolute; bottom: 5vh; width: 84vw; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 1.5vw; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
     .logo-mark { width: 46vh; height: 46vh; object-fit: contain; display: block; margin: 0 auto; }
   </style>
 </head>
@@ -84,7 +84,8 @@
       showMedia(s.mediaBg || null);
       stage.style.background = s.bg === 'gradient' ? 'linear-gradient(135deg,#1B1A33,#0B0B12)' : (s.bg || '#fff');
       const ne = document.getElementById('o-ne'), en = document.getElementById('o-en');
-      ne.innerHTML = sanctuary.lyricHTML(s.ne); en.innerHTML = sanctuary.lyricHTML(s.en);
+      const vn = t => (s.num && t ? `<sup class="vn">${s.num}</sup>` : '') + sanctuary.lyricHTML(t);   // bible verse number in front
+      ne.innerHTML = vn(s.ne); en.innerHTML = vn(s.en);
       const color = s.text === 'gradient' ? null : (s.text || '#000');
       [ne, en].forEach(el => { el.style.webkitTextFillColor = ''; el.style.background = ''; el.style.color = color || ''; if (!color) setGrad(el, true); });
       document.getElementById('o-foot-l').textContent = s.foot || '';
